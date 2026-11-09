@@ -4,8 +4,8 @@ A small Windows desktop app for filling in the Wicklow Archers weekly venue
 registration Google Form for several people at once. It needs no browser and
 no Google login.
 
-> **Status: in development.** The design is approved and the build plan is
-> being worked through. No release is available yet. See
+> **Status: build complete (2026-11-09), awaiting the owner's end-to-end
+> check on the test form.** No release is published yet. See
 > [Project status](#project-status).
 
 ## Why
@@ -73,6 +73,40 @@ The full design is in
   anyway**.
 - To build it: the [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0).
 
+## Using the app
+
+**First run.** Open **Settings** and check the clubs list (one club is the
+default for new people). Open **People** and add each person: full name,
+club, archery club number, payment method, optional loan bow, and usual
+training days. Changes save automatically.
+
+**Each week.**
+
+1. Open the app. It downloads the club's form and shows this week's sessions.
+   Each person's usual days are already ticked.
+2. Check the ticks. Change any you need.
+3. Press **Complete Form** and review what will be sent.
+4. Press **Submit**. The results list shows each person with a tick or a
+   failure.
+5. If anyone paid as a non-member, press **Pay with SumUp**. It opens the
+   club's payment page in your browser.
+
+**Registered ✓ and Send again.** A cell showing **Registered ✓** means the
+app already submitted that person for that session. It is not ticked for
+you next time. Use **Send again** only if you really want to register them a
+second time.
+
+**Test form badge.** A **Test form** badge shows whenever the app isn't
+pointed at the club's form. Switch forms in **Settings**.
+
+**If the form changes.** The app compares the form's questions with what it
+knows. If a required question was added, removed or changed, **Complete
+Form** is disabled and the reason is shown. If you are offline, the form
+can't be read and nothing can be sent.
+
+**Where your data lives.** In `%APPDATA%\WicklowArcheryApp\`, encrypted to
+your Windows account. The app won't close while it is sending.
+
 ## Building from source
 
 ```powershell
@@ -103,6 +137,25 @@ refuse to submit to the club's real form.
   copy of the form, never the club's:
   `dotnet test --filter "Category=Live"`.
 
+### End-to-end check (manual)
+
+Run this on a Release build before publishing a release. It submits to the
+test form only.
+
+1. Open **Settings**, switch to the test form, and confirm the **Test form**
+   badge is showing.
+2. Add two people named `TEST E2E 1` and `TEST E2E 2`. Give one the payment
+   `NON CLUB MEMBER PAYMENT` and a loan bow.
+3. Tick sessions, press **Complete Form**, then **Submit**. Both rows show a
+   tick. **Pay with SumUp** opens `https://wicklow-archers.sumup.link` in
+   your default browser.
+4. Open the test form's Responses tab. Both responses are there with the
+   right sessions, payment and loan.
+5. Close and reopen the app. Those cells show **Registered ✓** and are not
+   pre-ticked.
+6. Switch back to the club form in **Settings**. The badge disappears. Do
+   not submit.
+
 **Never submit test data to the club's real form.** The club's form feeds
 the club's real attendance records. Use the test form for any testing (its
 URL is in the design doc), and set it in the app's Settings while
@@ -127,8 +180,8 @@ docs/session-notes/          Working notes from each development session
 |---|---|
 | Design | Approved 2026-11-09 |
 | Build plan | Written 2026-11-09 ([plan](docs/superpowers/plans/2026-11-09-venue-registration-app.md)) |
-| Build | In progress |
-| First release (`.exe`) | Not yet |
+| Build | Complete 2026-11-09; awaiting the owner's end-to-end check |
+| First release (`.exe`) | Not yet published |
 
 Planned later: a Mac version, publishing through the Microsoft Store (which
 handles code signing), and optional rules such as "club member ⇒ free

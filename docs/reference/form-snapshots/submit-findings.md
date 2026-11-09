@@ -60,9 +60,17 @@ POST A was accepted, so the payload includes the hidden fields and sentinels. De
 A 400 (or a 200 without that text) is a failure; for a 400 the body names the problem, e.g. `This is a required question`.
 Caveat: B also returned 200 with the success text, so the success text alone does not prove the hidden fields were needed.
 
-## Responses tab: pending confirmation by James
+## Responses tab: checked
 
-Not checked (no browser access in this run). James to open the test form's Responses tab and check which of these appear:
-- A (`TEST spike A`): expected to appear.
-- C (no name): expected NOT to appear (400 with errors).
-- B (`TEST spike B`): unknown. It returned 200 with the success text; the Responses tab will say whether entries-only was really stored.
+Checked 2026-11-09 by Claude via Chrome on the test form's Responses tab.
+
+Measured:
+- 3 responses: `TEST live 2026-11-09 18:30`, `TEST spike A`, `TEST spike B`. `TEST spike C` is absent.
+- Venue counts: Monday 1, Wednesday 2, Sunday 0.
+- Payment: all three `WICKLOW ARCHERY CLUB MEMBER - FREE NO PAYMENT`.
+- Club: `Wicklow Archery` x3. Number: `TEST-0000` x3. Loan: 0.
+
+Conclusions:
+- The success marker means the response was stored.
+- A 400 means the response was not stored (C).
+- An entries-only POST (B: no hidden fields, no sentinels) is also stored.

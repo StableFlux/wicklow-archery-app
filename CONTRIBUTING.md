@@ -23,6 +23,8 @@ Thanks for helping. The app is small, so the rules are short.
 - Run `dotnet test --filter "Category!=Live"` before pushing. All tests
   must pass.
 - Live tests (`[Trait("Category","Live")]`) may only target the test form.
+  `dotnet test --filter "Category=Live"` submits a real response to the test
+  form, so run it sparingly.
 
 ## When the club changes its form
 
