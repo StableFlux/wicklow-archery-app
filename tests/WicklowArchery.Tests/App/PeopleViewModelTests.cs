@@ -19,6 +19,13 @@ public class PeopleViewModelTests
         public void Open(Uri url) { }
     }
 
+    private sealed class FailableProtector : WicklowArchery.Core.Data.IDataProtector
+    {
+        public bool Fail { get; set; }
+        public byte[] Protect(byte[] data) => Fail ? throw new System.IO.IOException("disk full") : (byte[])data.Clone();
+        public byte[] Unprotect(byte[] data) => (byte[])data.Clone();
+    }
+
     private sealed class Env
     {
         public required MainViewModel Vm { get; init; }
@@ -26,10 +33,10 @@ public class PeopleViewModelTests
         public required PeopleViewModel People { get; init; }
     }
 
-    private static async Task<Env> CreateAsync(int peopleCount = 2)
+    private static async Task<Env> CreateAsync(int peopleCount = 2, IDataProtector? protector = null)
     {
         var dir = Path.Combine(Path.GetTempPath(), "WicklowArcheryTests-" + Guid.NewGuid());
-        var store = new AppDataStore(dir, new PassThroughProtector());
+        var store = new AppDataStore(dir, protector ?? new PassThroughProtector());
         var data = AppData.CreateDefault();
         data.Settings.FormUrl = FormUrls.TestForm;
         for (var i = 1; i <= peopleCount; i++)
@@ -209,5 +216,66 @@ public class PeopleViewModelTests
         Assert.Single(env.Vm.Data.People);
         Assert.Same(env.Vm.People.Selected!.Person, env.Vm.Data.People[0]);
         Assert.False(env.Vm.ShowEmptyState);
+    }
+
+    [Fact]
+    public async Task Edit_WhenSaveFails_DoesNotShowSaved()
+    {
+        var protector = new FailableProtector();
+        var env = await CreateAsync(protector: protector);
+        protector.Fail = true;
+
+        env.People.People[0].FullName = "Cannot save";
+
+        Assert.False(env.People.ShowSaved);
+        Assert.StartsWith("Couldn't save your details", env.Vm.Notice);
+
+        protector.Fail = false;
+        env.People.People[0].FullName = "Can save";
+        Assert.True(env.People.ShowSaved);
+    }
+
+    [Fact]
+    public async Task EditName_KeepsTicksOnGrid()
+    {
+        var env = await CreateAsync();
+        var row = env.Vm.Week.Rows[0];
+        row.Cells[2].IsTicked = true;
+        env.Vm.Week.Rows[1].Cells[1].IsTicked = true;
+        var ticked = env.Vm.Week.RegistrationCount;
+
+        env.People.People[0].FullName = "Renamed";
+
+        Assert.Same(row, env.Vm.Week.Rows[0]);
+        Assert.Equal("Renamed", row.Name);
+        Assert.True(row.Cells[2].IsTicked);
+        Assert.True(env.Vm.Week.Rows[1].Cells[1].IsTicked);
+        Assert.Equal(ticked, env.Vm.Week.RegistrationCount);
+    }
+
+    [Fact]
+    public async Task EditUsualDays_KeepsOtherPeoplesTicks()
+    {
+        var env = await CreateAsync();
+        // Person 2 un-ticks their pre-tick and ticks another session by hand.
+        env.Vm.Week.Rows[1].Cells[0].IsTicked = false;
+        env.Vm.Week.Rows[1].Cells[2].IsTicked = true;
+
+        env.People.People[0].Days[2].IsSelected = true; // Wednesday for person 1
+
+        Assert.False(env.Vm.Week.Rows[1].Cells[0].IsTicked);
+        Assert.True(env.Vm.Week.Rows[1].Cells[2].IsTicked);
+        Assert.True(env.Vm.Week.Rows[0].Cells[1].IsTicked); // person 1's new usual day is pre-ticked
+    }
+
+    [Fact]
+    public async Task LeavingPeoplePage_CancelsRemovePrompt()
+    {
+        var env = await CreateAsync();
+        env.Vm.CurrentPage = Page.People;
+        env.People.AskRemoveCommand.Execute(null);
+        Assert.True(env.People.Selected!.IsConfirmingRemove);
+        env.Vm.CurrentPage = Page.Week;
+        Assert.False(env.People.Selected.IsConfirmingRemove);
     }
 }

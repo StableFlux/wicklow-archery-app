@@ -111,11 +111,19 @@ public partial class MainViewModel : ObservableObject
 
     public void SaveData() => _store.Save(Data);
 
+    /// <summary>A name was edited: update its label in the grid, nothing else.</summary>
+    public void PersonRenamed(Person person) => Week.RefreshName(person);
+
     /// <summary>The People page added, removed or edited someone: bring the main screen up to date.</summary>
-    public void PeopleChanged()
+    public void PeopleChanged(Person? changed = null)
     {
         if (Form is not null)
+        {
+            // Everyone else keeps their ticks; only the changed person goes back to their usual days.
+            var ticks = Week.SnapshotTicks();
             Week.Load(Form, Data);
+            Week.RestoreTicks(ticks, changed?.Id);
+        }
         OnPropertyChanged(nameof(ShowEmptyState));
         OnPropertyChanged(nameof(ShowGrid));
         OnPropertyChanged(nameof(ShowOfflineNotice));

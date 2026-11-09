@@ -44,11 +44,13 @@ public sealed class SessionHeaderViewModel(string fullText)
     public string FullText { get; } = fullText;
 }
 
-public sealed class PersonRowViewModel(Person person, IEnumerable<SessionCellViewModel> cells)
+public sealed class PersonRowViewModel(Person person, IEnumerable<SessionCellViewModel> cells) : ObservableObject
 {
     public Person Person { get; } = person;
     public string Name => Person.FullName;
     public ObservableCollection<SessionCellViewModel> Cells { get; } = new(cells);
+
+    public void RefreshName() => OnPropertyChanged(nameof(Name));
 }
 
 /// <summary>The weekly grid: people as rows, this week's sessions as columns.</summary>
@@ -83,6 +85,21 @@ public partial class WeekViewModel : ObservableObject
     {
         get => _hasSessions;
         private set => SetProperty(ref _hasSessions, value);
+    }
+
+    /// <summary>Re-reads one person's name for display, leaving every tick alone.</summary>
+    public void RefreshName(Person person) => Rows.FirstOrDefault(r => r.Person.Id == person.Id)?.RefreshName();
+
+    /// <summary>Every cell's tick, keyed by person and session.</summary>
+    public Dictionary<(Guid, string), bool> SnapshotTicks() =>
+        Rows.SelectMany(r => r.Cells).ToDictionary(c => (c.PersonId, c.SessionText), c => c.IsTicked);
+
+    /// <summary>Puts ticks back after a reload, for everyone except <paramref name="except"/> and for sessions that still exist.</summary>
+    public void RestoreTicks(Dictionary<(Guid, string), bool> ticks, Guid? except)
+    {
+        foreach (var cell in Rows.SelectMany(r => r.Cells))
+            if (cell.PersonId != except && ticks.TryGetValue((cell.PersonId, cell.SessionText), out var ticked))
+                cell.IsTicked = ticked;
     }
 
     public void Load(RegistrationForm form, AppData data)

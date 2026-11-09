@@ -7,6 +7,8 @@ using WicklowArchery.Core.Data;
 namespace WicklowArchery.App.ViewModels;
 
 /// <summary>One day-of-week pill in the editor.</summary>
+public enum EditKind { Other, Name, Days }
+
 public partial class DayChipViewModel(DayOfWeek day, string label, bool isSelected) : ObservableObject
 {
     public DayOfWeek Day { get; } = day;
@@ -51,8 +53,8 @@ public partial class PersonEditorViewModel : ObservableObject
 
     public Person Person { get; }
 
-    /// <summary>Raised after a change has been written and saved. The argument is true when the week grid is affected.</summary>
-    public event Action<bool>? Edited;
+    /// <summary>Raised after a change has been written and saved. Arguments: this editor, what changed, and whether the save succeeded.</summary>
+    public event Action<PersonEditorViewModel, EditKind, bool>? Edited;
 
     public IReadOnlyList<Club> Clubs => _owner.Data.Clubs;
     public IReadOnlyList<DayChipViewModel> Days { get; }
@@ -76,20 +78,20 @@ public partial class PersonEditorViewModel : ObservableObject
     partial void OnFullNameChanged(string value)
     {
         Person.FullName = value;
-        Persist(affectsGrid: true);
+        Persist(EditKind.Name);
     }
 
     partial void OnClubChanged(Club? value)
     {
         if (value is null) return;
         Person.ClubId = value.Id;
-        Persist(affectsGrid: false);
+        Persist(EditKind.Other);
     }
 
     partial void OnClubNumberChanged(string value)
     {
         Person.ClubNumber = value;
-        Persist(affectsGrid: false);
+        Persist(EditKind.Other);
     }
 
     // ---- Payment and loan options (from the loaded form, plus the person's saved value if it is not there) ----
@@ -119,7 +121,7 @@ public partial class PersonEditorViewModel : ObservableObject
             OnPropertyChanged();
             OnPropertyChanged(nameof(PaymentHint));
             RefreshWarnings();
-            Persist(affectsGrid: false);
+            Persist(EditKind.Other);
         }
     }
 
@@ -141,7 +143,7 @@ public partial class PersonEditorViewModel : ObservableObject
             OnPropertyChanged();
             OnPropertyChanged(nameof(LoanBow));
             RefreshWarnings();
-            Persist(affectsGrid: false);
+            Persist(EditKind.Other);
         }
     }
 
@@ -211,14 +213,15 @@ public partial class PersonEditorViewModel : ObservableObject
     {
         if (e.PropertyName != nameof(DayChipViewModel.IsSelected)) return;
         Person.UsualDays = Days.Where(d => d.IsSelected).Select(d => d.Day).ToList();
-        Persist(affectsGrid: true);
+        Persist(EditKind.Days);
     }
 
-    private void Persist(bool affectsGrid)
+    private void Persist(EditKind kind)
     {
+        var saved = true;
         try { _owner.SaveData(); }
-        catch (Exception ex) { _owner.Notice = $"Couldn't save your details: {ex.Message}"; }
-        Edited?.Invoke(affectsGrid);
+        catch (Exception ex) { saved = false; _owner.Notice = $"Couldn't save your details: {ex.Message}"; }
+        Edited?.Invoke(this, kind, saved);
     }
 }
 
@@ -311,10 +314,12 @@ public partial class PeopleViewModel : ObservableObject
         MarkSaved();
     }
 
-    private void OnEdited(bool affectsGrid)
+    private void OnEdited(PersonEditorViewModel editor, EditKind kind, bool saved)
     {
-        MarkSaved();
-        if (affectsGrid) _owner.PeopleChanged();
+        if (saved) MarkSaved();
+        // A new name only changes the label in the grid; usual days change the pre-ticks, so the week reloads.
+        if (kind == EditKind.Name) _owner.PersonRenamed(editor.Person);
+        else if (kind == EditKind.Days) _owner.PeopleChanged(editor.Person);
     }
 
     private void OnOwnerChanged(object? sender, PropertyChangedEventArgs e)
@@ -322,6 +327,9 @@ public partial class PeopleViewModel : ObservableObject
         // The form may finish loading after the editors were made.
         if (e.PropertyName is nameof(MainViewModel.Form) or nameof(MainViewModel.CurrentPage))
             foreach (var editor in People) editor.RefreshOptions();
+        // Leaving the page mid-question cancels it.
+        if (e.PropertyName == nameof(MainViewModel.CurrentPage) && _owner.CurrentPage != Page.People)
+            foreach (var editor in People) editor.IsConfirmingRemove = false;
     }
 
     private void MarkSaved()
