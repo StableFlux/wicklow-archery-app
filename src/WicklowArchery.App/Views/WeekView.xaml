@@ -1,0 +1,160 @@
+<UserControl x:Class="WicklowArchery.App.Views.WeekView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
+             Focusable="False">
+    <UserControl.Resources>
+        <!-- Grid metrics: name column, session columns, row height (44 px toggle + 8 px above and below). -->
+        <GridLength x:Key="NameColumnWidth">200</GridLength>
+        <sys:Double x:Key="SessionColumnWidth">200</sys:Double>
+        <sys:Double x:Key="RowHeight">60</sys:Double>
+
+        <!-- Divider above every row except the first (the header's own divider is above that). -->
+        <Style x:Key="RowDivider" TargetType="Border">
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DividerStrokeColorDefaultBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding RelativeSource={RelativeSource PreviousData}}" Value="{x:Null}">
+                    <Setter Property="BorderThickness" Value="0" />
+                    <Setter Property="Padding" Value="0,1,0,0" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource Card}" VerticalAlignment="Top">
+        <Grid>
+            <!--
+                The grid. Session headers and person names stay in place; the cells scroll
+                inside the card when they don't fit the window (see code-behind for the sync).
+            -->
+            <Grid>
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasSessions}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="{StaticResource NameColumnWidth}" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Divider under the headers, across the whole card. -->
+                <Border Grid.ColumnSpan="2" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}" />
+
+                <!-- Session headers: day in bold, the rest of the option text wrapped below. -->
+                <ScrollViewer x:Name="HeaderScroller" Grid.Column="1" Margin="0,0,0,1"
+                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                              Focusable="False" IsTabStop="False">
+                    <StackPanel Orientation="Horizontal">
+                        <ItemsControl ItemsSource="{Binding Headers}" Focusable="False" IsTabStop="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Width="{StaticResource SessionColumnWidth}" Margin="0,20,0,12" ToolTip="{Binding FullText}">
+                                        <TextBlock Text="{Binding Headline}" Style="{StaticResource BodyStrongText}" Margin="10,0,10,0"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Detail}" Style="{StaticResource CaptionText}" Margin="10,4,10,0"
+                                                   TextWrapping="Wrap" LineHeight="16" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <!-- Room for the cells' vertical scroll bar, so columns line up when scrolled fully right. -->
+                        <Border Width="16" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Person names. Follows the cells' vertical scroll. -->
+                <ScrollViewer x:Name="NameScroller" Grid.Row="1" ScrollChanged="OnNameScrollChanged"
+                              HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Hidden"
+                              Focusable="False" IsTabStop="False">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding Rows}" Focusable="False" IsTabStop="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource RowDivider}">
+                                        <Grid Height="{StaticResource RowHeight}">
+                                            <TextBlock Text="{Binding Name}" Style="{StaticResource BodyText}" Margin="20,0,12,0"
+                                                       VerticalAlignment="Center" MaxHeight="44"
+                                                       TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <!-- Matches the space below the cells (padding and any horizontal scroll bar); sized in code-behind. -->
+                        <Border x:Name="NameSpacer" Height="8" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- The cells. Arrow keys move between them; Space toggles. -->
+                <ScrollViewer x:Name="CellScroller" Grid.Row="1" Grid.Column="1" Style="{StaticResource CardScrollViewer}"
+                              Padding="0,0,0,8" ScrollChanged="OnCellScrollChanged">
+                    <ItemsControl ItemsSource="{Binding Rows}" Focusable="False" IsTabStop="False"
+                                  KeyboardNavigation.DirectionalNavigation="Contained" KeyboardNavigation.TabNavigation="Local"
+                                  PreviewKeyDown="OnCellsPreviewKeyDown">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource RowDivider}">
+                                    <ItemsControl ItemsSource="{Binding Cells}" Focusable="False" IsTabStop="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel Orientation="Horizontal" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Width="{StaticResource SessionColumnWidth}" Height="{StaticResource RowHeight}">
+                                                    <ToggleButton x:Name="Toggle" Style="{StaticResource SessionToggle}" Margin="6,8"
+                                                                  IsChecked="{Binding IsTicked}"
+                                                                  AutomationProperties.Name="{Binding SessionText}" />
+                                                    <ToggleButton x:Name="Registered" Style="{StaticResource RegisteredSessionToggle}" Margin="6,8"
+                                                                  IsChecked="{Binding IsTicked}" Visibility="Collapsed"
+                                                                  ToolTip="{Binding RegisteredToolTip}"
+                                                                  AutomationProperties.Name="{Binding SessionText}" />
+                                                </Grid>
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding IsRegistered}" Value="True">
+                                                        <Setter TargetName="Toggle" Property="Visibility" Value="Collapsed" />
+                                                        <Setter TargetName="Registered" Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- The form has no session options this week. -->
+            <TextBlock Text="There are no sessions on this week's form." Margin="24" HorizontalAlignment="Center">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasSessions}" Value="False">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+    </Border>
+</UserControl>

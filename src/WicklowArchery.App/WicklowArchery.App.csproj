@@ -8,6 +8,11 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Sample mode (Debug only) reads the test-form snapshot. -->
+    <EmbeddedResource Include="..\..\docs\reference\form-snapshots\test-form-2026-11-09.html" Link="Samples\test-form-2026-11-09.html" Condition="'$(Configuration)'=='Debug'" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
