@@ -107,6 +107,48 @@ public sealed class AppDataStoreTests : IDisposable
     }
 
     [Fact]
+    public void Load_LockedFile_ReturnsSeedNoticeAndDisablesSave()
+    {
+        var store = new AppDataStore(_dir, new PassThroughProtector());
+        var data = AppData.CreateDefault();
+        data.People.Add(new Person { FullName = "Original", ClubId = data.Clubs[0].Id });
+        store.Save(data);
+        var path = Path.Combine(_dir, "data.bin");
+        var before = File.ReadAllBytes(path);
+
+        var fresh = new AppDataStore(_dir, new PassThroughProtector());
+        using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var result = fresh.Load();
+            Assert.Equal("Wicklow Archery", Assert.Single(result.Data.Clubs).Name);
+            Assert.Empty(result.Data.People);
+            Assert.Equal("Your saved details couldn't be opened right now, so changes won't be saved until the app is restarted.", result.Notice);
+            Assert.False(fresh.CanSave);
+            result.Data.People.Add(new Person { FullName = "Changed" });
+            fresh.Save(result.Data);
+        }
+
+        Assert.Equal(before, File.ReadAllBytes(path));
+        Assert.Empty(Directory.GetFiles(_dir, "data.unreadable-*"));
+    }
+
+    [Fact]
+    public void Load_DecryptsButInvalidJson_MovesAside()
+    {
+        Directory.CreateDirectory(_dir);
+        var path = Path.Combine(_dir, "data.bin");
+        File.WriteAllBytes(path, Encoding.UTF8.GetBytes("not json"));
+
+        var store = new AppDataStore(_dir, new PassThroughProtector());
+        var result = store.Load();
+
+        Assert.StartsWith("Your saved details couldn't be read on this PC", result.Notice);
+        Assert.False(File.Exists(path));
+        Assert.Single(Directory.GetFiles(_dir, "data.unreadable-*.bin"));
+        Assert.True(store.CanSave);
+    }
+
+    [Fact]
     public void FormUrls_IsClubForm()
     {
         Assert.True(FormUrls.IsClubForm(FormUrls.ClubForm));

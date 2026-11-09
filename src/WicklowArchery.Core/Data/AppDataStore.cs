@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -32,6 +33,8 @@ public sealed class AppDataStore
         "WicklowArcheryApp");
 #endif
 
+    public bool CanSave { get; private set; } = true;
+
     private string DataPath => Path.Combine(_directory, FileName);
 
     public LoadResult Load()
@@ -40,16 +43,38 @@ public sealed class AppDataStore
         if (!File.Exists(path))
             return new LoadResult(AppData.CreateDefault(), null);
 
+        const string LockedNotice = "Your saved details couldn't be opened right now, so changes won't be saved until the app is restarted.";
+
+        byte[] encrypted;
         try
         {
-            var plain = _protector.Unprotect(File.ReadAllBytes(path));
+            encrypted = File.ReadAllBytes(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            CanSave = false;
+            return new LoadResult(AppData.CreateDefault(), LockedNotice);
+        }
+
+        try
+        {
+            var plain = _protector.Unprotect(encrypted);
             var data = JsonSerializer.Deserialize<AppData>(plain, JsonOptions)
                 ?? throw new JsonException("Empty data file.");
             return new LoadResult(data, null);
         }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
+        catch (Exception ex) when (ex is CryptographicException or JsonException or NotSupportedException)
         {
-            var movedName = MoveAside(path);
+            string movedName;
+            try
+            {
+                movedName = MoveAside(path);
+            }
+            catch (Exception moveEx) when (moveEx is IOException or UnauthorizedAccessException)
+            {
+                CanSave = false;
+                return new LoadResult(AppData.CreateDefault(), LockedNotice);
+            }
             var notice = $"Your saved details couldn't be read on this PC, so the app has started fresh. The old file was kept as {movedName}.";
             return new LoadResult(AppData.CreateDefault(), notice);
         }
@@ -57,6 +82,7 @@ public sealed class AppDataStore
 
     public void Save(AppData data)
     {
+        if (!CanSave) return;
         Directory.CreateDirectory(_directory);
         var json = JsonSerializer.SerializeToUtf8Bytes(data, JsonOptions);
         var tmp = DataPath + ".tmp";
