@@ -30,6 +30,7 @@ public partial class MainViewModel : ObservableObject
         notice = loaded.Notice;
 
         People = new PeopleViewModel(this);
+        Settings = new SettingsViewModel(this);
         Week.PropertyChanged += OnWeekChanged;
         RefreshCommand = new AsyncRelayCommand(LoadAsync, () => !IsSubmitting);
         CompleteFormCommand = new RelayCommand(CompleteForm, () => CompleteFormDisabledReason is null);
@@ -38,6 +39,7 @@ public partial class MainViewModel : ObservableObject
     public AppData Data { get; }
     public WeekViewModel Week { get; } = new();
     public PeopleViewModel People { get; }
+    public SettingsViewModel Settings { get; }
     public RegistrationForm? Form { get; private set; }
 
     public IAsyncRelayCommand RefreshCommand { get; }
@@ -129,6 +131,23 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowOfflineNotice));
         OnPropertyChanged(nameof(CompleteFormDisabledReason));
         CompleteFormCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>The Settings page added, renamed, removed or re-defaulted a club: the People editors pick it up, and it is saved.</summary>
+    public void ClubsChanged()
+    {
+        People.RefreshClubs();
+        try { SaveData(); }
+        catch (Exception ex) { Notice = $"Couldn't save your details: {ex.Message}"; }
+    }
+
+    /// <summary>The form address was changed on the Settings page: the test-form badge follows it.</summary>
+    public void NotifyFormChanged() => OnPropertyChanged(nameof(IsTestForm));
+
+    partial void OnCurrentPageChanging(Page value)
+    {
+        if (CurrentPage == Page.Settings && value != Page.Settings) Settings.OnLeaving();
+        if (value == Page.Settings && CurrentPage != Page.Settings) Settings.OnEntering();
     }
 
     public void OpenUrl(Uri url) => _urlOpener.Open(url);

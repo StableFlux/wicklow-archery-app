@@ -56,7 +56,8 @@ public partial class PersonEditorViewModel : ObservableObject
     /// <summary>Raised after a change has been written and saved. Arguments: this editor, what changed, and whether the save succeeded.</summary>
     public event Action<PersonEditorViewModel, EditKind, bool>? Edited;
 
-    public IReadOnlyList<Club> Clubs => _owner.Data.Clubs;
+    /// <summary>A fresh copy each time, so the drop-down notices when the clubs change.</summary>
+    public IReadOnlyList<Club> Clubs => _owner.Data.Clubs.ToList();
     public IReadOnlyList<DayChipViewModel> Days { get; }
 
     [ObservableProperty]
@@ -83,7 +84,7 @@ public partial class PersonEditorViewModel : ObservableObject
 
     partial void OnClubChanged(Club? value)
     {
-        if (value is null) return;
+        if (value is null || _refreshing) return;
         Person.ClubId = value.Id;
         Persist(EditKind.Other);
     }
@@ -145,6 +146,21 @@ public partial class PersonEditorViewModel : ObservableObject
             RefreshWarnings();
             Persist(EditKind.Other);
         }
+    }
+
+    /// <summary>Clubs were added, renamed or removed: rebuild the club list and keep this person's club selected.</summary>
+    public void RefreshClubs()
+    {
+        var current = Club;
+        _refreshing = true;
+        try
+        {
+            OnPropertyChanged(nameof(Clubs));
+            // The drop-down clears its selection while it is rebuilt; put it back (and drop it if the club is gone).
+            Club = _owner.Data.Clubs.FirstOrDefault(c => c.Id == Person.ClubId) ?? current;
+        }
+        finally { _refreshing = false; }
+        OnPropertyChanged(nameof(ListDetail));
     }
 
     /// <summary>Rebuilds the option lists, e.g. when the form finishes loading.</summary>
@@ -320,6 +336,11 @@ public partial class PeopleViewModel : ObservableObject
         // A new name only changes the label in the grid; usual days change the pre-ticks, so the week reloads.
         if (kind == EditKind.Name) _owner.PersonRenamed(editor.Person);
         else if (kind == EditKind.Days) _owner.PeopleChanged(editor.Person);
+    }
+
+    public void RefreshClubs()
+    {
+        foreach (var editor in People) editor.RefreshClubs();
     }
 
     private void OnOwnerChanged(object? sender, PropertyChangedEventArgs e)

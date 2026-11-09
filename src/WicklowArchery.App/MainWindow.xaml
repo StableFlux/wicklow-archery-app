@@ -254,20 +254,9 @@
             <views:PeopleView DataContext="{Binding People}" Margin="24,0"
                               Visibility="{Binding DataContext.ShowPeoplePage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
 
-            <!-- The Settings page arrives in a later build step. -->
-            <Border Style="{StaticResource PageCard}"
-                    Visibility="{Binding ShowSettingsPage, Converter={StaticResource BoolToVisibility}}">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="Settings page arrives in a later build step." Style="{StaticResource SecondaryText}" />
-                    <Button Style="{StaticResource SubtleButton}" HorizontalAlignment="Center" Margin="0,16,0,0"
-                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:Page.Week}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72B;" Style="{StaticResource IconText}" />
-                            <TextBlock Text="Back" Margin="8,0,0,0" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Border>
+            <!-- Settings page -->
+            <views:SettingsView DataContext="{Binding Settings}" Margin="24,0"
+                                Visibility="{Binding DataContext.ShowSettingsPage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
         </Grid>
 
         <!-- Footer -->

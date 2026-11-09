@@ -1,0 +1,198 @@
+<UserControl x:Class="WicklowArchery.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False" DataContextChanged="OnDataContextChanged">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style x:Key="CardTitle" TargetType="TextBlock" BasedOn="{StaticResource BodyStrongText}">
+            <Setter Property="FontSize" Value="16" />
+        </Style>
+
+        <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource SubtleButton}">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="36" />
+        </Style>
+
+        <!-- Outlined secondary button: the critical button's shape, in neutral colours. -->
+        <Style x:Key="OutlineButton" TargetType="Button" BasedOn="{StaticResource CriticalButton}">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        </Style>
+
+        <!-- Tick when the club form is active, warning otherwise. -->
+        <Style x:Key="FormStatusIcon" TargetType="TextBlock" BasedOn="{StaticResource IconText}">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Text" Value="&#xE73E;" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsFormStatusCaution}" Value="True">
+                    <Setter Property="Text" Value="&#xE7BA;" />
+                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Page header: back to the week, then the title. -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+            <Button Style="{StaticResource SubtleButton}" Command="{Binding BackCommand}" Margin="-10,0,12,0"
+                    AutomationProperties.Name="Back to this week">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE72B;" Style="{StaticResource IconText}" />
+                    <TextBlock Text="This week" Margin="8,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <TextBlock Text="Settings" FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <!-- Left-aligned, up to 720 wide: the star column fills the window until it hits its cap. -->
+            <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="720" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,0,24">
+
+                <!-- Clubs -->
+                <Border Style="{StaticResource Card}" Padding="24">
+                    <StackPanel>
+                        <TextBlock Text="Clubs" Style="{StaticResource CardTitle}" />
+                        <TextBlock Text="The default club is used for each new person." Style="{StaticResource SecondaryText}"
+                                   FontSize="12" Margin="0,4,0,16" />
+
+                        <ItemsControl x:Name="ClubList" ItemsSource="{Binding Clubs}" Focusable="False" IsTabStop="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="12" />
+                                                <ColumnDefinition Width="132" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Tag="ClubName" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" MinHeight="36"
+                                                     VerticalContentAlignment="Center" AutomationProperties.Name="Club name"
+                                                     LostFocus="OnClubNameLostFocus" />
+                                            <!-- The default club shows a star; the others offer to become it. -->
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                        Visibility="{Binding IsDefault, Converter={StaticResource BoolToVisibility}}"
+                                                        AutomationProperties.Name="Default club">
+                                                <TextBlock Text="&#xE735;" Style="{StaticResource IconText}" FontSize="14"
+                                                           Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                                <TextBlock Text="Default" Style="{StaticResource BodyStrongText}" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <Button Grid.Column="2" Content="Make default" HorizontalAlignment="Left" FontSize="13"
+                                                    Command="{Binding DataContext.SetDefaultClubCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <Button.Style>
+                                                    <Style TargetType="Button" BasedOn="{StaticResource SubtleButton}">
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsDefault}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Button.Style>
+                                            </Button>
+                                            <Button Grid.Column="3" Style="{StaticResource IconButton}" ToolTip="Remove club"
+                                                    AutomationProperties.Name="Remove club"
+                                                    Command="{Binding DataContext.AskRemoveClubCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="14" />
+                                            </Button>
+                                        </Grid>
+
+                                        <!-- A rule that stops this change. -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0"
+                                                    Visibility="{Binding HasMessage, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="&#xE7BA;" Style="{StaticResource IconText}" FontSize="12" Margin="0,0,6,0"
+                                                       Foreground="{DynamicResource SystemFillColorCautionBrush}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding Message}" Style="{StaticResource CaptionText}" VerticalAlignment="Center" />
+                                        </StackPanel>
+
+                                        <!-- Remove: the inline question. -->
+                                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                                                    Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="{Binding RemovePrompt}" Style="{StaticResource BodyStrongText}" VerticalAlignment="Center" Margin="0,0,16,0" />
+                                            <Button Content="Remove" Style="{StaticResource CriticalButton}" MinWidth="96"
+                                                    Command="{Binding DataContext.RemoveClubCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Content="Cancel" Style="{StaticResource SubtleButton}" Margin="8,0,0,0" MinWidth="80"
+                                                    Command="{Binding DataContext.CancelRemoveClubCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Button Style="{StaticResource OutlineButton}" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                Command="{Binding AddClubCommand}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE710;" Style="{StaticResource IconText}" FontSize="14" />
+                                <TextBlock Text="Add club" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Form -->
+                <Border Style="{StaticResource Card}" Padding="24" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Form" Style="{StaticResource CardTitle}" />
+                        <TextBlock Text="Which Google Form the app fills in each week." Style="{StaticResource SecondaryText}"
+                                   FontSize="12" Margin="0,4,0,16" />
+
+                        <TextBlock Text="Form address" Style="{StaticResource FieldLabel}" />
+                        <TextBox x:Name="FormUrlBox" Text="{Binding FormUrl, UpdateSourceTrigger=PropertyChanged}" MinHeight="36"
+                                 VerticalContentAlignment="Center" FontFamily="Consolas" FontSize="12" TextWrapping="Wrap"
+                                 AutomationProperties.Name="Form address" LostFocus="OnFormUrlLostFocus">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Return" Command="{Binding CommitFormUrlCommand}" />
+                            </TextBox.InputBindings>
+                        </TextBox>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0"
+                                    Visibility="{Binding HasFormUrlError, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="&#xEA39;" Style="{StaticResource IconText}" FontSize="12" Margin="0,0,6,0"
+                                       Foreground="{DynamicResource SystemFillColorCriticalBrush}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding FormUrlError}" Style="{StaticResource CaptionText}"
+                                       Foreground="{DynamicResource SystemFillColorCriticalBrush}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                            <Button Content="Use club form" Style="{StaticResource OutlineButton}" MinWidth="140"
+                                    Command="{Binding UseClubFormCommand}" />
+                            <Button Content="Use test form" Style="{StaticResource OutlineButton}" MinWidth="140" Margin="8,0,0,0"
+                                    Command="{Binding UseTestFormCommand}" />
+                        </StackPanel>
+
+                        <!-- Which form is active. -->
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0" AutomationProperties.Name="Active form">
+                            <TextBlock Style="{StaticResource FormStatusIcon}" />
+                            <TextBlock Text="{Binding FormStatusText}" Style="{StaticResource BodyText}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+            </Grid>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
