@@ -138,36 +138,73 @@ public partial class MainViewModel : ObservableObject
         return _run = RunAsync(items);
     }
 
+    private ResultsViewModel? _results;
+
     private async Task RunAsync(IReadOnlyList<ConfirmItem> items)
     {
-        var form = Form!;
-        var ticked = Week.GetSelections().ToDictionary(x => x.Person.Id, x => x.Sessions);
-        var results = new ResultsViewModel(items, form.SumUpUrl, _urlOpener.Open, () => Overlay = null);
-        Overlay = results;
-        var progress = new InlineProgress<PersonResult>(r => OnUiThread(() => Record(results, r)));
+        ResultsViewModel? results = null;
         try
         {
-            await _service.SubmitAsync(form, items, progress, CancellationToken.None);
+            var form = Form!;
+            var ticked = Week.GetSelections().ToDictionary(x => x.Person.Id, x => x.Sessions);
+            results = new ResultsViewModel(items, form.SumUpUrl, _urlOpener.Open, () => Overlay = null);
+            _results = results;
+            Overlay = results;
+            var progress = new InlineProgress<PersonResult>(r => OnUiThread(() => Record(results, r)));
+            try
+            {
+                await _service.SubmitAsync(form, items, progress, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                OnUiThread(() => results.FailUnfinished($"Couldn't send: {ex.Message}"));
+            }
+            OnUiThread(() =>
+            {
+                results.Finish();
+                Week.Load(form, Data);
+                // Failed or skipped people keep their ticks, so a retry is one click.
+                foreach (var row in results.Rows.Where(r => r.State is PersonResultState.Failed or PersonResultState.Skipped))
+                {
+                    if (!ticked.TryGetValue(row.Item.Person.Id, out var sessions)) continue;
+                    var gridRow = Week.Rows.FirstOrDefault(r => r.Person.Id == row.Item.Person.Id);
+                    if (gridRow is null) continue;
+                    foreach (var cell in gridRow.Cells.Where(c => sessions.Contains(c.SessionText)))
+                        cell.IsTicked = true;
+                }
+            });
         }
         catch (Exception ex)
         {
-            OnUiThread(() => results.FailUnfinished($"Couldn't send: {ex.Message}"));
-        }
-        OnUiThread(() =>
-        {
-            results.Finish();
-            Week.Load(form, Data);
-            // Failed or skipped people keep their ticks, so a retry is one click.
-            foreach (var row in results.Rows.Where(r => r.State is PersonResultState.Failed or PersonResultState.Skipped))
+            // Never leave the overlay on "Sending...": fail what is unfinished and let the user press Done.
+            OnUiThread(() =>
             {
-                if (!ticked.TryGetValue(row.Item.Person.Id, out var sessions)) continue;
-                var gridRow = Week.Rows.FirstOrDefault(r => r.Person.Id == row.Item.Person.Id);
-                if (gridRow is null) continue;
-                foreach (var cell in gridRow.Cells.Where(c => sessions.Contains(c.SessionText)))
-                    cell.IsTicked = true;
-            }
-            IsSubmitting = false;
-        });
+                if (results is null) Notice = $"Couldn't send: {ex.Message}";
+                else { results.FailUnfinished($"Couldn't send: {ex.Message}"); results.Finish(); }
+            });
+        }
+        finally
+        {
+            OnUiThread(() =>
+            {
+                _results = null;
+                results?.Finish();
+                IsSubmitting = false;
+            });
+        }
+    }
+
+    /// <summary>
+    /// Called when the window is asked to close. While a send is running it refuses, and says so on the
+    /// results card (where the user is looking) as well as in the notice banner.
+    /// </summary>
+    public bool TryBlockClose()
+    {
+        if (!IsSubmitting) return false;
+        const string message = "Sending in progress. Close the app when it finishes.";
+        if (_results is not null) _results.CloseBlockedMessage = message;
+        Notice = message;
+        return true;
     }
 
     private void Record(ResultsViewModel results, PersonResult result)

@@ -69,6 +69,10 @@ public partial class ResultsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Title))]
     private bool isFinished;
 
+    /// <summary>Shown on the card when the user tries to close the window mid-send.</summary>
+    [ObservableProperty]
+    private string? closeBlockedMessage;
+
     public string Title => IsFinished ? "Done" : "Sending…";
 
     public bool ShowSumUp => _sumUpUrl is not null && Rows.Any(r =>
@@ -96,7 +100,11 @@ public partial class ResultsViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowSumUp));
     }
 
-    public void Finish() => IsFinished = true;
+    public void Finish()
+    {
+        IsFinished = true;
+        CloseBlockedMessage = null;
+    }
 
     private void PaySumUp()
     {

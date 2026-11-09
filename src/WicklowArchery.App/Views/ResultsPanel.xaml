@@ -85,12 +85,29 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <StackPanel Grid.Row="2" Orientation="Vertical" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,12" AutomationProperties.LiveSetting="Assertive">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding CloseBlockedMessage}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <TextBlock Text="&#xE7BA;" Style="{StaticResource IconText}" FontSize="12" Margin="0,1,6,0"
+                           Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                <TextBlock Text="{Binding CloseBlockedMessage}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="SumUpButton" Content="Pay with SumUp" Command="{Binding PaySumUpCommand}" MinHeight="40" MinWidth="96"
                         Padding="16,0" Margin="0,0,8,0"
                         Visibility="{Binding ShowSumUp, Converter={StaticResource BoolToVisibility}}" />
                 <Button x:Name="DoneButton" Content="Done" Command="{Binding DoneCommand}" Style="{StaticResource PrimaryButton}"
                         MinWidth="120" />
+            </StackPanel>
             </StackPanel>
         </Grid>
     </Border>

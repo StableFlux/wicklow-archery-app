@@ -262,4 +262,61 @@ public class ConfirmViewModelTests
         Assert.True(memberCells.Single(c => c.SessionText == env.Monday).IsRegistered);
         Assert.False(memberCells.Single(c => c.SessionText == env.Monday).IsTicked);
     }
+
+    [Fact]
+    public async Task Run_ExceptionAfterStart_ResetsIsSubmitting()
+    {
+        var env = await CreateAsync();
+        Tick(env, env.Member, env.Monday);
+        var confirm = OpenConfirm(env);
+        // Corrupt a person after the confirm panel is built, so reloading the grid after the run throws.
+        env.Vm.Data.People.Single(p => p.Id == env.Guest.Id).UsualDays = null!;
+
+        await confirm.SubmitCommand.ExecuteAsync(null);
+
+        var results = Assert.IsType<ResultsViewModel>(env.Vm.Overlay);
+        Assert.False(env.Vm.IsSubmitting);
+        Assert.True(results.IsFinished);
+        Assert.True(results.DoneCommand.CanExecute(null));
+        Assert.All(results.Rows, r => Assert.NotEqual(PersonResultState.Sending, r.State));
+        Assert.True(env.Vm.RefreshCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Run_ExceptionBeforeOverlay_ResetsIsSubmitting()
+    {
+        var env = await CreateAsync();
+        OpenConfirm(env);
+
+        await env.Vm.SubmitAsync(null!);
+
+        Assert.False(env.Vm.IsSubmitting);
+        Assert.True(env.Vm.RefreshCommand.CanExecute(null));
+        Assert.NotNull(env.Vm.Notice);
+    }
+
+    [Fact]
+    public async Task CloseBlockedMessage_ShownOnResultsCard()
+    {
+        var env = await CreateAsync();
+        var gate = new TaskCompletionSource();
+        env.Client.OnPost = async (_, _) =>
+        {
+            await gate.Task;
+            return new HttpPostResult(200, Fixtures.Read("test-form-response-ok.html"));
+        };
+        Tick(env, env.Member, env.Monday);
+        var confirm = OpenConfirm(env);
+        Assert.False(env.Vm.TryBlockClose());
+
+        var run = confirm.SubmitCommand.ExecuteAsync(null);
+        Assert.True(env.Vm.TryBlockClose());
+        var results = Assert.IsType<ResultsViewModel>(env.Vm.Overlay);
+        Assert.Equal("Sending in progress. Close the app when it finishes.", results.CloseBlockedMessage);
+
+        gate.SetResult();
+        await run;
+        Assert.Null(results.CloseBlockedMessage);
+        Assert.False(env.Vm.TryBlockClose());
+    }
 }

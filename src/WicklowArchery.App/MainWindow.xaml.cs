@@ -42,10 +42,9 @@ public partial class MainWindow : Window
             return;
 
         // A send in progress must finish first, or a person Google already accepted could go unrecorded.
-        if (vm.IsSubmitting)
+        if (vm.TryBlockClose())
         {
             e.Cancel = true;
-            vm.Notice = "Sending in progress. Close the app when it finishes.";
             return;
         }
 
