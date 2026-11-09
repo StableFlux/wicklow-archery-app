@@ -65,7 +65,7 @@ Caveat: B also returned 200 with the success text, so the success text alone doe
 Checked 2026-11-09 by Claude via Chrome on the test form's Responses tab.
 
 Measured:
-- 3 responses: `TEST live 2026-11-09 18:30`, `TEST spike A`, `TEST spike B`. `TEST spike C` is absent.
+- 3 responses at the time of checking: `TEST live 2026-11-09 18:30`, `TEST spike A`, `TEST spike B`. `TEST spike C` is absent.
 - Venue counts: Monday 1, Wednesday 2, Sunday 0.
 - Payment: all three `WICKLOW ARCHERY CLUB MEMBER - FREE NO PAYMENT`.
 - Club: `Wicklow Archery` x3. Number: `TEST-0000` x3. Loan: 0.

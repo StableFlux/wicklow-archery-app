@@ -21,7 +21,7 @@ shows you exactly what was submitted.
 
 ## What it does
 
-- **People list.** Each person's full name, club, archery club number,
+- **People list.** Each person's full name, club, club number,
   payment method, optional loan bow, and usual training days are saved.
 - **Clubs list.** One club is the default for new people.
 - **Reads the live form.** When the app opens, it downloads the current form
@@ -77,7 +77,7 @@ The full design is in
 
 **First run.** Open **Settings** and check the clubs list (one club is the
 default for new people). Open **People** and add each person: full name,
-club, archery club number, payment method, optional loan bow, and usual
+club, club number, payment method, optional loan bow, and usual
 training days. Changes save automatically.
 
 **Each week.**
@@ -86,15 +86,16 @@ training days. Changes save automatically.
    Each person's usual days are already ticked.
 2. Check the ticks. Change any you need.
 3. Press **Complete Form** and review what will be sent.
-4. Press **Submit**. The results list shows each person with a tick or a
-   failure.
+4. Press **Submit (N)**, where N is the number of people who will be sent.
+   The results list shows each person with a tick or a failure.
 5. If anyone paid as a non-member, press **Pay with SumUp**. It opens the
    club's payment page in your browser.
 
 **Registered ✓ and Send again.** A cell showing **Registered ✓** means the
-app already submitted that person for that session. It is not ticked for
-you next time. Use **Send again** only if you really want to register them a
-second time.
+app already submitted that person for that session on this form. It is not
+ticked for you next time. If you really want to register them a second time,
+click the **Registered ✓** cell: it changes to **Send again**, and that
+session will be sent again. Click it once more to change your mind.
 
 **Test form badge.** A **Test form** badge shows whenever the app isn't
 pointed at the club's form. Switch forms in **Settings**.
@@ -146,15 +147,18 @@ test form only.
    badge is showing.
 2. Add two people named `TEST E2E 1` and `TEST E2E 2`. Give one the payment
    `NON CLUB MEMBER PAYMENT` and a loan bow.
-3. Tick sessions, press **Complete Form**, then **Submit**. Both rows show a
-   tick. **Pay with SumUp** opens `https://wicklow-archers.sumup.link` in
-   your default browser.
-4. Open the test form's Responses tab. Both responses are there with the
+3. Use only the TEST people: clear every tick on real people's rows first,
+   so no real person is sent, even to the test form.
+4. Tick sessions for the TEST people, press **Complete Form**, then
+   **Submit (N)**. Both rows show a tick. **Pay with SumUp** opens
+   `https://wicklow-archers.sumup.link` in your default browser.
+5. Open the test form's Responses tab. Both responses are there with the
    right sessions, payment and loan.
-5. Close and reopen the app. Those cells show **Registered ✓** and are not
+6. Close and reopen the app. Those cells show **Registered ✓** and are not
    pre-ticked.
-6. Switch back to the club form in **Settings**. The badge disappears. Do
-   not submit.
+7. Switch back to the club form in **Settings**. The badge disappears, and
+   the TEST people's cells are not marked **Registered ✓** there (that
+   history belongs to the test form). Do not submit.
 
 **Never submit test data to the club's real form.** The club's form feeds
 the club's real attendance records. Use the test form for any testing (its
