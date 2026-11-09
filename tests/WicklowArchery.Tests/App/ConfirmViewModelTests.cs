@@ -216,4 +216,50 @@ public class ConfirmViewModelTests
         var cell = env.Vm.Week.Rows.Single(r => r.Person.Id == env.Member.Id).Cells.Single(c => c.SessionText == env.Monday);
         Assert.True(cell.IsRegistered);
     }
+
+    [Fact]
+    public async Task Close_WhileSubmitting_IsSubmittingTrue()
+    {
+        var env = await CreateAsync();
+        var gate = new TaskCompletionSource();
+        env.Client.OnPost = async (_, _) =>
+        {
+            await gate.Task;
+            return new HttpPostResult(200, Fixtures.Read("test-form-response-ok.html"));
+        };
+        Tick(env, env.Member, env.Monday);
+        var confirm = OpenConfirm(env);
+        Assert.False(env.Vm.IsSubmitting);
+        Assert.False(env.Vm.IsContentEnabled);
+
+        var run = confirm.SubmitCommand.ExecuteAsync(null);
+
+        Assert.True(env.Vm.IsSubmitting);
+        Assert.False(env.Vm.IsContentEnabled);
+        Assert.False(env.Vm.RefreshCommand.CanExecute(null));
+        gate.SetResult();
+        await run;
+        Assert.False(env.Vm.IsSubmitting);
+        Assert.True(env.Vm.RefreshCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task AfterRun_FailedPersonKeepsTicks()
+    {
+        var env = await CreateAsync();
+        env.Client.OnPost = (_, fields) =>
+            fields.Any(f => f.Value == "Guest Gail")
+                ? throw new HttpRequestException("down")
+                : Task.FromResult(new HttpPostResult(200, Fixtures.Read("test-form-response-ok.html")));
+        Tick(env, env.Member, env.Monday);
+        Tick(env, env.Guest, env.Monday, env.Wednesday);
+        await OpenConfirm(env).SubmitCommand.ExecuteAsync(null);
+
+        var guestCells = env.Vm.Week.Rows.Single(r => r.Person.Id == env.Guest.Id).Cells;
+        Assert.True(guestCells.Single(c => c.SessionText == env.Monday).IsTicked);
+        Assert.True(guestCells.Single(c => c.SessionText == env.Wednesday).IsTicked);
+        var memberCells = env.Vm.Week.Rows.Single(r => r.Person.Id == env.Member.Id).Cells;
+        Assert.True(memberCells.Single(c => c.SessionText == env.Monday).IsRegistered);
+        Assert.False(memberCells.Single(c => c.SessionText == env.Monday).IsTicked);
+    }
 }

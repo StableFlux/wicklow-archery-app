@@ -31,6 +31,20 @@ public class WeekPlannerTests
     }
 
     [Fact]
+    public void Build_SeveralRegistrations_UsesLatest()
+    {
+        var s = Sessions();
+        var p = P();
+        var wed = s.First(x => SessionText.DayOf(x) == DayOfWeek.Wednesday);
+        var older = new HistoryEntry { PersonId = p.Id, SessionText = wed, Succeeded = true, At = new DateTimeOffset(2026, 11, 1, 9, 0, 0, TimeSpan.Zero) };
+        var newer = new HistoryEntry { PersonId = p.Id, SessionText = wed, Succeeded = true, At = new DateTimeOffset(2026, 11, 8, 9, 0, 0, TimeSpan.Zero) };
+        var cell = WeekPlanner.Build(s, [p], [newer, older]).Single(c => c.SessionText == wed);
+        Assert.Same(newer, cell.AlreadyRegistered);
+        cell = WeekPlanner.Build(s, [p], [older, newer]).Single(c => c.SessionText == wed);
+        Assert.Same(newer, cell.AlreadyRegistered);
+    }
+
+    [Fact]
     public void Build_SessionWithoutDayName_NeverPreTicked()
     {
         var cells = WeekPlanner.Build(["Special event"], [P(Enum.GetValues<DayOfWeek>())], []);

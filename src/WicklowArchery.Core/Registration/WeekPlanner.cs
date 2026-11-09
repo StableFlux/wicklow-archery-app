@@ -14,8 +14,10 @@ public static class WeekPlanner
         {
             foreach (var session in sessions)
             {
-                var done = history.FirstOrDefault(h =>
-                    h.Succeeded && h.PersonId == person.Id && string.Equals(h.SessionText, session, StringComparison.Ordinal));
+                var done = history
+                    .Where(h => h.Succeeded && h.PersonId == person.Id && string.Equals(h.SessionText, session, StringComparison.Ordinal))
+                    .OrderByDescending(h => h.At)
+                    .FirstOrDefault();
                 var day = Forms.SessionText.DayOf(session);
                 var usual = day is not null && person.UsualDays.Contains(day.Value);
                 cells.Add(new WeekCell(person.Id, session, usual && done is null, done));

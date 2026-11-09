@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -7,22 +8,29 @@ namespace WicklowArchery.App.Views;
 
 public partial class ResultsPanel : UserControl
 {
+    private ResultsViewModel? _watched;
+
     public ResultsPanel() => InitializeComponent();
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (DataContext is not ResultsViewModel vm) return;
-        vm.PropertyChanged += (_, args) =>
-        {
-            if (args.PropertyName == nameof(ResultsViewModel.IsFinished)) FocusDone(vm);
-        };
-        FocusDone(vm);
+        if (DataContext is not ResultsViewModel vm || ReferenceEquals(_watched, vm)) return;
+        _watched = vm;
+        vm.PropertyChanged += OnVmChanged;
+        // While sending, focus stays inside this card; Done takes it once the run has finished.
+        Dispatcher.BeginInvoke(() => (vm.IsFinished ? DoneButton : (IInputElement)this).Focus(), DispatcherPriority.Input);
     }
 
-    /// <summary>Done is the primary action once the run has finished.</summary>
-    private void FocusDone(ResultsViewModel vm)
+    private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        if (!vm.IsFinished) return;
-        Dispatcher.BeginInvoke(() => DoneButton.Focus(), DispatcherPriority.Input);
+        if (_watched is null) return;
+        _watched.PropertyChanged -= OnVmChanged;
+        _watched = null;
+    }
+
+    private void OnVmChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(ResultsViewModel.IsFinished) && _watched is { IsFinished: true })
+            Dispatcher.BeginInvoke(() => DoneButton.Focus(), DispatcherPriority.Input);
     }
 }

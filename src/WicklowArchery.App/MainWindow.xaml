@@ -106,6 +106,7 @@
     </Window.Resources>
 
     <Grid>
+    <Grid IsEnabled="{Binding IsContentEnabled}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -294,9 +295,10 @@
                 </StackPanel>
             </Grid>
         </Border>
+    </Grid>
 
         <!-- Confirm / results overlay: dimmed backdrop over the whole window, centred card. -->
-        <Grid Grid.RowSpan="4" Panel.ZIndex="10" KeyboardNavigation.TabNavigation="Cycle"
+        <Grid Panel.ZIndex="10" KeyboardNavigation.TabNavigation="Cycle"
               KeyboardNavigation.ControlTabNavigation="Cycle" KeyboardNavigation.DirectionalNavigation="Cycle">
             <Grid.Style>
                 <Style TargetType="Grid">

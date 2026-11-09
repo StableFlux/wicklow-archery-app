@@ -30,7 +30,7 @@ public partial class MainViewModel : ObservableObject
         notice = loaded.Notice;
 
         Week.PropertyChanged += OnWeekChanged;
-        RefreshCommand = new AsyncRelayCommand(LoadAsync);
+        RefreshCommand = new AsyncRelayCommand(LoadAsync, () => !IsSubmitting);
         CompleteFormCommand = new RelayCommand(CompleteForm, () => CompleteFormDisabledReason is null);
     }
 
@@ -55,9 +55,19 @@ public partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ShowWeek), nameof(ShowPeoplePage), nameof(ShowSettingsPage), nameof(ShowEmptyState), nameof(ShowGrid), nameof(ShowOfflineNotice))]
     private Page currentPage = Page.Week;
 
-    /// <summary>A modal panel shown over the week (the confirm panel arrives in a later step).</summary>
+    /// <summary>A modal panel shown over the week: the confirm panel, then the results.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsContentEnabled))]
     private object? overlay;
+
+    /// <summary>False while an overlay is open: everything behind it is locked.</summary>
+    public bool IsContentEnabled => Overlay is null;
+
+    /// <summary>True from the start of a send until it has finished. The window must not close meanwhile.</summary>
+    [ObservableProperty]
+    private bool isSubmitting;
+
+    partial void OnIsSubmittingChanged(bool value) => RefreshCommand.NotifyCanExecuteChanged();
 
     public bool IsTestForm => !FormUrls.IsClubForm(Data.Settings.FormUrl);
 
@@ -124,12 +134,14 @@ public partial class MainViewModel : ObservableObject
     public Task SubmitAsync(IReadOnlyList<ConfirmItem> items)
     {
         if (_run is { IsCompleted: false } running) return running;
+        IsSubmitting = true;
         return _run = RunAsync(items);
     }
 
     private async Task RunAsync(IReadOnlyList<ConfirmItem> items)
     {
         var form = Form!;
+        var ticked = Week.GetSelections().ToDictionary(x => x.Person.Id, x => x.Sessions);
         var results = new ResultsViewModel(items, form.SumUpUrl, _urlOpener.Open, () => Overlay = null);
         Overlay = results;
         var progress = new InlineProgress<PersonResult>(r => OnUiThread(() => Record(results, r)));
@@ -145,6 +157,16 @@ public partial class MainViewModel : ObservableObject
         {
             results.Finish();
             Week.Load(form, Data);
+            // Failed or skipped people keep their ticks, so a retry is one click.
+            foreach (var row in results.Rows.Where(r => r.State is PersonResultState.Failed or PersonResultState.Skipped))
+            {
+                if (!ticked.TryGetValue(row.Item.Person.Id, out var sessions)) continue;
+                var gridRow = Week.Rows.FirstOrDefault(r => r.Person.Id == row.Item.Person.Id);
+                if (gridRow is null) continue;
+                foreach (var cell in gridRow.Cells.Where(c => sessions.Contains(c.SessionText)))
+                    cell.IsTicked = true;
+            }
+            IsSubmitting = false;
         });
     }
 

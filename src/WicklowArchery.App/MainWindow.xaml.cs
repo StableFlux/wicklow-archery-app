@@ -41,6 +41,14 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel vm)
             return;
 
+        // A send in progress must finish first, or a person Google already accepted could go unrecorded.
+        if (vm.IsSubmitting)
+        {
+            e.Cancel = true;
+            vm.Notice = "Sending in progress. Close the app when it finishes.";
+            return;
+        }
+
         var maximized = WindowState == WindowState.Maximized;
         var bounds = maximized ? RestoreBounds : new Rect(Left, Top, Width, Height);
         if (WindowState != WindowState.Minimized && !bounds.IsEmpty)
