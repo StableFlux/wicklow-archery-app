@@ -8,16 +8,30 @@ public sealed class HttpFormClient(HttpClient http) : IFormClient
     public static string Encode(IReadOnlyList<KeyValuePair<string, string>> fields) =>
         new FormUrlEncodedContent(fields).ReadAsStringAsync().GetAwaiter().GetResult();
 
+    internal static HttpClientHandler CreateHandler() => new() { AllowAutoRedirect = false };
+
+    public static HttpClient CreateHttpClient() =>
+        new(CreateHandler()) { Timeout = TimeSpan.FromSeconds(30) };
+
+    private static void EnsureAllowed(Uri url)
+    {
+        if (!FormAddress.IsAllowed(url))
+            throw new InvalidOperationException("Blocked request to a non-Google address.");
+    }
+
     public async Task<string> GetAsync(Uri url, CancellationToken ct)
     {
+        EnsureAllowed(url);
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddHeaders(request);
         using var response = await http.SendAsync(request, ct).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
     }
 
     public async Task<HttpPostResult> PostAsync(Uri url, IReadOnlyList<KeyValuePair<string, string>> fields, CancellationToken ct)
     {
+        EnsureAllowed(url);
         using var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = new FormUrlEncodedContent(fields) };
         AddHeaders(request);
         using var response = await http.SendAsync(request, ct).ConfigureAwait(false);

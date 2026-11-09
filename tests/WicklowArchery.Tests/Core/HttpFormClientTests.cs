@@ -24,6 +24,34 @@ public class HttpFormClientTests
         }
     }
 
+    private sealed class FailHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            throw new Xunit.Sdk.XunitException("Request must not be sent.");
+    }
+
+    [Fact]
+    public async Task Get_NonGoogleUrl_Throws()
+    {
+        var client = new HttpFormClient(new HttpClient(new FailHandler()));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.GetAsync(new Uri("https://evil.example/forms/d/e/x/viewform"), CancellationToken.None));
+        Assert.Equal("Blocked request to a non-Google address.", ex.Message);
+    }
+
+    [Fact]
+    public async Task Post_NonGoogleUrl_Throws()
+    {
+        var client = new HttpFormClient(new HttpClient(new FailHandler()));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            client.PostAsync(new Uri("http://docs.google.com/forms/d/e/x/formResponse"), [new("a", "b")], CancellationToken.None));
+        Assert.Equal("Blocked request to a non-Google address.", ex.Message);
+    }
+
+    [Fact]
+    public void CreateHttpClient_DisablesRedirects() =>
+        Assert.False(HttpFormClient.CreateHandler().AllowAutoRedirect);
+
     [Fact]
     public void Encode_IrishNamesRoundTrip()
     {
@@ -42,8 +70,8 @@ public class HttpFormClientTests
     {
         var handler = new CaptureHandler();
         var client = new HttpFormClient(new HttpClient(handler));
-        await client.GetAsync(new Uri("https://example.test/a"), CancellationToken.None);
-        await client.PostAsync(new Uri("https://example.test/b"), [new("a", "b")], CancellationToken.None);
+        await client.GetAsync(new Uri("https://docs.google.com/forms/d/e/x/viewform"), CancellationToken.None);
+        await client.PostAsync(new Uri("https://docs.google.com/forms/d/e/x/formResponse"), [new("a", "b")], CancellationToken.None);
         Assert.Equal(2, handler.Requests.Count);
         foreach (var r in handler.Requests)
         {

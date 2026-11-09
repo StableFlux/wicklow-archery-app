@@ -140,4 +140,46 @@ public class RegistrationServiceTests
         await s.SubmitAsync(form, Items(form, P(form, "A")), new SyncProgress(seen), CancellationToken.None);
         Assert.Equal([PersonResultState.Sending, PersonResultState.Submitted], seen.Select(r => r.State).ToArray());
     }
+
+    [Fact]
+    public async Task Load_NonGoogleUrl_ReturnsErrorWithoutRequest()
+    {
+        var (c, s) = Make();
+        var r = await s.LoadFormAsync("https://evil.example/forms/d/e/x/viewform", CancellationToken.None);
+        Assert.Null(r.Check);
+        Assert.Equal("That form address isn't a Google Form link. Use the full docs.google.com/forms link.", r.Error);
+        Assert.Empty(c.Gets);
+    }
+
+    [Fact]
+    public async Task Load_ResponseUrlForDifferentForm_ReturnsParseError()
+    {
+        var (c, s) = Make();
+        var r = await s.LoadFormAsync(FormUrls.ClubForm, CancellationToken.None);
+        Assert.Null(r.Check);
+        Assert.Equal("The form page couldn't be read. Google may have changed its format.", r.Error);
+        Assert.Empty(c.Posts);
+    }
+
+    [Fact]
+    public async Task Submit_ResponseUrlNotAllowed_FailsWithoutPost()
+    {
+        var (c, s) = Make();
+        var form = Form() with { ResponseUrl = new Uri("https://evil.example/formResponse") };
+        var results = await s.SubmitAsync(form, Items(form, P(form, "A")), null, CancellationToken.None);
+        Assert.Empty(c.Posts);
+        Assert.Equal(PersonResultState.Failed, results[0].State);
+        Assert.Equal("Couldn't send: the form's submit address isn't a Google Forms address.", results[0].Error);
+    }
+
+    [Fact]
+    public async Task Submit_RedirectReply_FailedUnexpected302()
+    {
+        var (c, s) = Make();
+        c.OnPost = (_, _) => Task.FromResult(new HttpPostResult(302, ""));
+        var form = Form();
+        var results = await s.SubmitAsync(form, Items(form, P(form, "A")), null, CancellationToken.None);
+        Assert.Equal(PersonResultState.Failed, results[0].State);
+        Assert.Equal("Unexpected reply from Google (HTTP 302).", results[0].Error);
+    }
 }

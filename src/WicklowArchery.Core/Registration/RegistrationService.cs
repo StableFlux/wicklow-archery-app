@@ -14,10 +14,19 @@ public sealed class RegistrationService(IFormClient client, TimeProvider clock)
 {
     public async Task<FormLoadResult> LoadFormAsync(string formUrl, CancellationToken ct)
     {
+        const string parseError = "The form page couldn't be read. Google may have changed its format.";
+        var formUri = FormAddress.TryParse(formUrl);
+        if (formUri is null)
+            return new FormLoadResult(null, "That form address isn't a Google Form link. Use the full docs.google.com/forms link.");
         try
         {
-            var html = await client.GetAsync(new Uri(formUrl), ct).ConfigureAwait(false);
-            return new FormLoadResult(FormMapper.Map(FormParser.Parse(html)), null);
+            var html = await client.GetAsync(formUri, ct).ConfigureAwait(false);
+            var check = FormMapper.Map(FormParser.Parse(html));
+            if (check.Form is { } form
+                && (!FormAddress.IsAllowed(form.ResponseUrl)
+                    || FormAddress.FormId(form.ResponseUrl) != FormAddress.FormId(formUri)))
+                return new FormLoadResult(null, parseError);
+            return new FormLoadResult(check, null);
         }
         catch (HttpRequestException)
         {
@@ -29,7 +38,7 @@ public sealed class RegistrationService(IFormClient client, TimeProvider clock)
         }
         catch (FormParseException)
         {
-            return new FormLoadResult(null, "The form page couldn't be read. Google may have changed its format.");
+            return new FormLoadResult(null, parseError);
         }
     }
 
@@ -59,6 +68,8 @@ public sealed class RegistrationService(IFormClient client, TimeProvider clock)
     private async Task<PersonResult> SendOneAsync(RegistrationForm form, ConfirmItem item, CancellationToken ct)
     {
         PersonResult Failed(string error) => new(item, PersonResultState.Failed, error, clock.GetUtcNow());
+        if (!FormAddress.IsAllowed(form.ResponseUrl))
+            return Failed("Couldn't send: the form's submit address isn't a Google Forms address.");
         try
         {
             var fields = PayloadBuilder.Build(form, item.Submission!);

@@ -21,8 +21,11 @@ public sealed class FakeFormClient : IFormClient
 
     public List<(Uri Url, IReadOnlyList<KeyValuePair<string, string>> Fields)> Posts { get; } = [];
 
+    public List<Uri> Gets { get; } = [];
+
     public Task<string> GetAsync(Uri url, CancellationToken ct)
     {
+        Gets.Add(url);
         if (GetException is not null) throw GetException;
         return Task.FromResult(GetBody);
     }
