@@ -182,4 +182,20 @@ public class RegistrationServiceTests
         Assert.Equal(PersonResultState.Failed, results[0].State);
         Assert.Equal("Unexpected reply from Google (HTTP 302).", results[0].Error);
     }
+
+    private sealed class Status302Handler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.Found));
+    }
+
+    [Fact]
+    public async Task Load_Get302_ReturnsNetworkError()
+    {
+        var real = new HttpFormClient(new HttpClient(new Status302Handler()));
+        var s = new RegistrationService(real, new FixedTimeProvider(Now));
+        var r = await s.LoadFormAsync(FormUrls.TestForm, CancellationToken.None);
+        Assert.Null(r.Check);
+        Assert.Equal("Couldn't reach the form. Check your internet connection.", r.Error);
+    }
 }

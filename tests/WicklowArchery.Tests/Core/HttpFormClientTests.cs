@@ -52,6 +52,29 @@ public class HttpFormClientTests
     public void CreateHttpClient_DisablesRedirects() =>
         Assert.False(HttpFormClient.CreateHandler().AllowAutoRedirect);
 
+    private sealed class StatusHandler(HttpStatusCode code) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(new HttpResponseMessage(code) { Content = new StringContent("x") });
+    }
+
+    [Fact]
+    public void CreateHttpClient_HasThirtySecondTimeout()
+    {
+        using var http = HttpFormClient.CreateHttpClient();
+        Assert.Equal(TimeSpan.FromSeconds(30), http.Timeout);
+    }
+
+    [Theory]
+    [InlineData(302)]
+    [InlineData(500)]
+    public async Task Get_Non2xx_ThrowsHttpRequestException(int code)
+    {
+        var client = new HttpFormClient(new HttpClient(new StatusHandler((HttpStatusCode)code)));
+        await Assert.ThrowsAsync<HttpRequestException>(() =>
+            client.GetAsync(new Uri("https://docs.google.com/forms/d/e/x/viewform"), CancellationToken.None));
+    }
+
     [Fact]
     public void Encode_IrishNamesRoundTrip()
     {

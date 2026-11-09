@@ -20,6 +20,10 @@ public class FormAddressTests
         Assert.False(FormAddress.IsAllowed(new Uri(FormUrls.TestForm.Replace("https:", "http:"))));
 
     [Fact]
+    public void IsAllowed_UserInfo_False() =>
+        Assert.False(FormAddress.IsAllowed(new Uri("https://evil@docs.google.com/forms/d/e/x/viewform")));
+
+    [Fact]
     public void IsAllowed_OtherHost_False()
     {
         Assert.False(FormAddress.IsAllowed(new Uri("https://docs.google.com.evil.example/forms/d/e/x/viewform")));

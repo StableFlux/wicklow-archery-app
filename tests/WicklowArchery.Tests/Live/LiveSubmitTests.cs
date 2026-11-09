@@ -16,7 +16,7 @@ public class LiveSubmitTests
     public async Task Submit_ToTestForm_Succeeds()
     {
         Assert.False(FormUrls.IsClubForm(FormUrls.TestForm));
-        var client = new ClubFormGuardClient(new HttpFormClient(HttpFormClient.CreateHttpClient()));
+        var client = new ClubFormGuardClient(HttpFormClient.Create());
         var service = new RegistrationService(client, TimeProvider.System);
 
         var load = await service.LoadFormAsync(FormUrls.TestForm, CancellationToken.None);

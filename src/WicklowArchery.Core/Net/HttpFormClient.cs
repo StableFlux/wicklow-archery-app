@@ -3,14 +3,20 @@ using System.Net.Http;
 namespace WicklowArchery.Core.Net;
 
 /// <summary>Real HTTP client. The caller owns the HttpClient and its timeout.</summary>
-public sealed class HttpFormClient(HttpClient http) : IFormClient
+public sealed class HttpFormClient : IFormClient
 {
+    private readonly HttpClient http;
+
+    internal HttpFormClient(HttpClient http) => this.http = http;
+
+    public static HttpFormClient Create() => new(CreateHttpClient());
+
     public static string Encode(IReadOnlyList<KeyValuePair<string, string>> fields) =>
         new FormUrlEncodedContent(fields).ReadAsStringAsync().GetAwaiter().GetResult();
 
     internal static HttpClientHandler CreateHandler() => new() { AllowAutoRedirect = false };
 
-    public static HttpClient CreateHttpClient() =>
+    internal static HttpClient CreateHttpClient() =>
         new(CreateHandler()) { Timeout = TimeSpan.FromSeconds(30) };
 
     private static void EnsureAllowed(Uri url)

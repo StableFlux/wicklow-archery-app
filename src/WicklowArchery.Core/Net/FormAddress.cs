@@ -9,7 +9,8 @@ public static class FormAddress
         url.IsAbsoluteUri
         && url.Scheme == Uri.UriSchemeHttps
         && string.Equals(url.Host, "docs.google.com", StringComparison.OrdinalIgnoreCase)
-        && url.IsDefaultPort;
+        && url.IsDefaultPort
+        && url.UserInfo.Length == 0;
 
     public static string? FormId(Uri url)
     {
