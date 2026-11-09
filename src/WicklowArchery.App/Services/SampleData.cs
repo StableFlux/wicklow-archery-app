@@ -44,6 +44,8 @@ internal static class SampleData
         var p2 = Make(2, DayOfWeek.Wednesday, DayOfWeek.Sunday);
         var p3 = Make(3);
         var p4 = Make(4, DayOfWeek.Sunday);
+        // Person 4 pays as a non-member, so the results show "Pay with SumUp".
+        p4.PaymentMethod = form.PaymentOptions.FirstOrDefault(o => o == "NON CLUB MEMBER PAYMENT") ?? payment;
         data.People.AddRange([p1, p2, p3, p4]);
 
         // Person 2 already registered for Wednesday, so that cell shows the "Registered" badge.

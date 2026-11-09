@@ -6,12 +6,20 @@
         Title="Wicklow Archers"
         Width="1100" Height="640" MinWidth="720" MinHeight="480"
         WindowStartupLocation="CenterScreen"
-        FontFamily="{StaticResource TextFont}">
+        FontFamily="{StaticResource TextFont}"
+        PreviewKeyDown="Window_PreviewKeyDown">
     <Window.InputBindings>
         <KeyBinding Key="Return" Modifiers="Ctrl" Command="{Binding CompleteFormCommand}" />
     </Window.InputBindings>
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <DataTemplate DataType="{x:Type vm:ConfirmViewModel}">
+            <views:ConfirmPanel />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ResultsViewModel}">
+            <views:ResultsPanel />
+        </DataTemplate>
 
         <!-- The status pill: green when up to date, neutral while checking, amber when changed, red when offline. -->
         <Style x:Key="HeaderStatusPill" TargetType="Border" BasedOn="{StaticResource StatusPill}">
@@ -286,5 +294,23 @@
                 </StackPanel>
             </Grid>
         </Border>
+
+        <!-- Confirm / results overlay: dimmed backdrop over the whole window, centred card. -->
+        <Grid Grid.RowSpan="4" Panel.ZIndex="10" KeyboardNavigation.TabNavigation="Cycle"
+              KeyboardNavigation.ControlTabNavigation="Cycle" KeyboardNavigation.DirectionalNavigation="Cycle">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Overlay}" Value="{x:Null}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <Border Background="{DynamicResource SolidBackgroundFillColorBaseBrush}" Opacity="0.7" />
+            <ContentControl Content="{Binding Overlay}" Margin="24,48" HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch" IsTabStop="False" Focusable="False" />
+        </Grid>
     </Grid>
 </Window>

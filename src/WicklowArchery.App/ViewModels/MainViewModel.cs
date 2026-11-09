@@ -107,8 +107,79 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void DismissNotice() => Notice = null;
 
-    // The confirm panel arrives in a later build step.
-    private void CompleteForm() { }
+    private void CompleteForm()
+    {
+        if (Form is null || Overlay is not null) return;
+        var items = ConfirmationBuilder.Build(Form, Week.GetSelections(), Data.Clubs, Data.History);
+        Overlay = new ConfirmViewModel(items, Data.History, SubmitAsync, () => Overlay = null);
+    }
+
+    private Task? _run;
+
+    /// <summary>
+    /// Sends the items one at a time, showing per-person progress. Each finished person is written to the
+    /// history and saved straight away, so a crash part-way keeps what was sent. A second call while a run is
+    /// in progress joins it rather than sending again.
+    /// </summary>
+    public Task SubmitAsync(IReadOnlyList<ConfirmItem> items)
+    {
+        if (_run is { IsCompleted: false } running) return running;
+        return _run = RunAsync(items);
+    }
+
+    private async Task RunAsync(IReadOnlyList<ConfirmItem> items)
+    {
+        var form = Form!;
+        var results = new ResultsViewModel(items, form.SumUpUrl, _urlOpener.Open, () => Overlay = null);
+        Overlay = results;
+        var progress = new InlineProgress<PersonResult>(r => OnUiThread(() => Record(results, r)));
+        try
+        {
+            await _service.SubmitAsync(form, items, progress, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            OnUiThread(() => results.FailUnfinished($"Couldn't send: {ex.Message}"));
+        }
+        OnUiThread(() =>
+        {
+            results.Finish();
+            Week.Load(form, Data);
+        });
+    }
+
+    private void Record(ResultsViewModel results, PersonResult result)
+    {
+        results.Apply(result);
+        if (result.State is not (PersonResultState.Submitted or PersonResultState.Failed) || result.Item.Submission is null)
+            return;
+        foreach (var session in result.Item.Submission.Sessions)
+        {
+            Data.History.Add(new HistoryEntry
+            {
+                PersonId = result.Item.Person.Id,
+                SessionText = session,
+                At = result.At,
+                Succeeded = result.State == PersonResultState.Submitted,
+                Error = result.Error,
+            });
+        }
+        try { SaveData(); }
+        catch (Exception ex) { Notice = $"Couldn't save your details: {ex.Message}"; }
+    }
+
+    /// <summary>The service may report from a pool thread; the view model's state belongs to the UI thread.</summary>
+    private static void OnUiThread(Action action)
+    {
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null || dispatcher.CheckAccess()) action();
+        else dispatcher.Invoke(action);
+    }
+
+    private sealed class InlineProgress<T>(Action<T> report) : IProgress<T>
+    {
+        public void Report(T value) => report(value);
+    }
 
     private async Task LoadAsync()
     {

@@ -53,6 +53,17 @@ public partial class MainWindow : Window
         try { vm.SaveData(); } catch (Exception) { /* nothing useful to do while closing */ }
     }
 
+    /// <summary>Esc closes the confirm panel. The results panel stays until its Done button.</summary>
+    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && DataContext is MainViewModel { Overlay: ConfirmViewModel confirm }
+            && confirm.CancelCommand.CanExecute(null))
+        {
+            confirm.CancelCommand.Execute(null);
+            e.Handled = true;
+        }
+    }
+
     private void StatusPill_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is MainViewModel { Status: FormStatus.Changed })

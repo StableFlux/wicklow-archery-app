@@ -1,0 +1,97 @@
+<UserControl x:Class="WicklowArchery.App.Views.ResultsPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Loaded="OnLoaded">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!-- Spinner, shown only while that person is being sent. -->
+        <Style x:Key="RowSpinner" TargetType="TextBlock" BasedOn="{StaticResource IconText}">
+            <Setter Property="Text" Value="&#xE895;" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Visibility" Value="Collapsed" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <RotateTransform />
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSending}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                    <DataTrigger.EnterActions>
+                        <BeginStoryboard x:Name="Spin">
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.Angle" From="0" To="360"
+                                                 Duration="0:0:1.2" RepeatBehavior="Forever" />
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </DataTrigger.EnterActions>
+                    <DataTrigger.ExitActions>
+                        <RemoveStoryboard BeginStoryboardName="Spin" />
+                    </DataTrigger.ExitActions>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="RowStatus" TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding State}" Value="Submitted">
+                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding State}" Value="Failed">
+                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Style="{StaticResource Card}" Padding="24" MaxWidth="600" VerticalAlignment="Center"
+            Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.3" />
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="{Binding Title}" FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" AutomationProperties.HeadingLevel="Level1" />
+            <ScrollViewer Grid.Row="1" Style="{StaticResource CardScrollViewer}" HorizontalScrollBarVisibility="Disabled"
+                          Margin="0,16,0,0">
+                <ItemsControl ItemsSource="{Binding Rows}" Margin="0,0,12,0" IsTabStop="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" MaxWidth="260" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource BodyStrongText}" />
+                                    <TextBlock Text="{Binding SessionsText}" Style="{StaticResource SecondaryText}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Top">
+                                    <TextBlock Style="{StaticResource RowSpinner}" />
+                                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource RowStatus}" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                <Button x:Name="SumUpButton" Content="Pay with SumUp" Command="{Binding PaySumUpCommand}" MinHeight="40" MinWidth="96"
+                        Padding="16,0" Margin="0,0,8,0"
+                        Visibility="{Binding ShowSumUp, Converter={StaticResource BoolToVisibility}}" />
+                <Button x:Name="DoneButton" Content="Done" Command="{Binding DoneCommand}" Style="{StaticResource PrimaryButton}"
+                        MinWidth="120" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>
