@@ -40,13 +40,14 @@ public sealed class ConfirmPersonViewModel
 /// <summary>"Ready to send": who is about to be registered for what, before anything leaves the app.</summary>
 public partial class ConfirmViewModel : ObservableObject
 {
-    public ConfirmViewModel(IReadOnlyList<ConfirmItem> items, IReadOnlyList<HistoryEntry> history,
-        Func<IReadOnlyList<ConfirmItem>, Task> submit, Action cancel)
+    public ConfirmViewModel(RegistrationForm form, IReadOnlyList<ConfirmItem> items, IReadOnlyList<HistoryEntry> history,
+        Func<RegistrationForm, IReadOnlyList<ConfirmItem>, Task> submit, Action cancel)
     {
+        Form = form;
         Items = items;
         People = items.Select(i => new ConfirmPersonViewModel(i, history)).ToList();
         SendableCount = items.Count(i => !i.IsBlocked);
-        SubmitCommand = new AsyncRelayCommand(() => submit(Items), () => SendableCount > 0);
+        SubmitCommand = new AsyncRelayCommand(() => submit(Form, Items), () => SendableCount > 0);
         CancelCommand = new RelayCommand(cancel, () => !SubmitCommand.IsRunning);
         SubmitCommand.PropertyChanged += (_, e) =>
         {
@@ -56,6 +57,9 @@ public partial class ConfirmViewModel : ObservableObject
     }
 
     public string Title => "Ready to send";
+
+    /// <summary>The form this panel was built from; Submit sends to exactly this form.</summary>
+    public RegistrationForm Form { get; }
     public IReadOnlyList<ConfirmItem> Items { get; }
     public IReadOnlyList<ConfirmPersonViewModel> People { get; }
     public int SendableCount { get; }

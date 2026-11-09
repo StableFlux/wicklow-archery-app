@@ -288,7 +288,7 @@ public class ConfirmViewModelTests
         var env = await CreateAsync();
         OpenConfirm(env);
 
-        await env.Vm.SubmitAsync(null!);
+        await env.Vm.SubmitAsync(env.Vm.Form!, null!);
 
         Assert.False(env.Vm.IsSubmitting);
         Assert.True(env.Vm.RefreshCommand.CanExecute(null));
@@ -318,5 +318,62 @@ public class ConfirmViewModelTests
         await run;
         Assert.Null(results.CloseBlockedMessage);
         Assert.False(env.Vm.TryBlockClose());
+    }
+    [Fact]
+    public async Task Send_FormIdMismatch_Refused()
+    {
+        var env = await CreateAsync();
+        Tick(env, env.Member, env.Monday);
+        var confirm = OpenConfirm(env);
+        // The saved address no longer matches the form the panel was built from.
+        env.Vm.Data.Settings.FormUrl = FormUrls.ClubForm;
+
+        await confirm.SubmitCommand.ExecuteAsync(null);
+
+        Assert.Empty(env.Client.Posts);
+        Assert.NotNull(env.Vm.Notice);
+        Assert.False(env.Vm.IsSubmitting);
+        Assert.Empty(env.Store.Load().Data.History);
+    }
+
+    [Fact]
+    public async Task Send_UsesFormFromConfirmPanel()
+    {
+        var env = await CreateAsync();
+        Tick(env, env.Member, env.Monday);
+        var confirmedUrl = env.Vm.Form!.ResponseUrl;
+        var confirm = OpenConfirm(env);
+
+        // A reload while the panel is open finds a changed page, so the main form goes away.
+        env.Client.GetBody = "<html>nothing here</html>";
+        await env.Vm.RefreshCommand.ExecuteAsync(null);
+        Assert.Null(env.Vm.Form);
+
+        await confirm.SubmitCommand.ExecuteAsync(null);
+
+        var post = Assert.Single(env.Client.Posts);
+        Assert.Equal(confirmedUrl, post.Url);
+        var results = Assert.IsType<ResultsViewModel>(env.Vm.Overlay);
+        Assert.Equal(PersonResultState.Submitted, results.Rows[0].State);
+    }
+
+    [Fact]
+    public async Task CloseBlockedNotice_ClearedWhenRunEnds()
+    {
+        var env = await CreateAsync();
+        var gate = new TaskCompletionSource();
+        env.Client.OnPost = async (_, _) =>
+        {
+            await gate.Task;
+            return new HttpPostResult(200, Fixtures.Read("test-form-response-ok.html"));
+        };
+        Tick(env, env.Member, env.Monday);
+        var run = OpenConfirm(env).SubmitCommand.ExecuteAsync(null);
+        Assert.True(env.Vm.TryBlockClose());
+        Assert.Equal("Sending in progress. Close the app when it finishes.", env.Vm.Notice);
+
+        gate.SetResult();
+        await run;
+        Assert.Null(env.Vm.Notice);
     }
 }

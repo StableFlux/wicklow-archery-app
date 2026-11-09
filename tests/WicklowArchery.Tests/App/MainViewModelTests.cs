@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using WicklowArchery.App.Services;
 using WicklowArchery.App.ViewModels;
 using WicklowArchery.Core.Data;
+using WicklowArchery.Core.Net;
 using WicklowArchery.Core.Registration;
 using WicklowArchery.Tests.Fakes;
 using Xunit;
@@ -140,5 +141,92 @@ public class MainViewModelTests
         client.GetException = new HttpRequestException("down");
         await vm.InitializeAsync();
         Assert.Equal(FormStatus.Offline, vm.Status);
+    }
+    private static readonly string TestId = FormAddress.FormId(new Uri(FormUrls.TestForm))!;
+    private static readonly string ClubId = FormAddress.FormId(new Uri(FormUrls.ClubForm))!;
+
+    [Fact]
+    public async Task Load_StaleResultAfterUrlChange_IsDiscarded()
+    {
+        var (vm, client) = Create(FormUrls.ClubForm);
+        client.SetGetBody(FormUrls.ClubForm, Fixtures.Read("club-form-2026-11-09.html"));
+        client.SetGetBody(FormUrls.TestForm, Fixtures.Read("test-form-2026-11-09.html"));
+        var clubGate = new TaskCompletionSource();
+        client.GateGet(FormUrls.ClubForm, clubGate.Task);
+
+        // Startup load of the club form is slow; meanwhile the user switches to the test form, which loads at once.
+        var startup = vm.InitializeAsync();
+        await vm.Settings.UseTestFormCommand.ExecuteAsync(null);
+        Assert.Equal(TestId, FormAddress.FormId(vm.Form!.ResponseUrl));
+
+        // The club load finishes last and must not win.
+        clubGate.SetResult();
+        await startup;
+
+        Assert.True(vm.IsTestForm);
+        Assert.Equal(FormStatus.UpToDate, vm.Status);
+        Assert.Equal(TestId, FormAddress.FormId(vm.Form!.ResponseUrl));
+    }
+
+    [Fact]
+    public async Task UrlChange_ClearsFormAndGrid()
+    {
+        var (vm, client) = Create(FormUrls.TestForm);
+        await vm.InitializeAsync();
+        Assert.NotNull(vm.Form);
+        Assert.NotEmpty(vm.Week.Rows);
+
+        client.SetGetBody(FormUrls.ClubForm, Fixtures.Read("club-form-2026-11-09.html"));
+        var gate = new TaskCompletionSource();
+        client.GateGet(FormUrls.ClubForm, gate.Task);
+        var change = vm.Settings.UseClubFormCommand.ExecuteAsync(null);
+
+        Assert.Null(vm.Form);
+        Assert.Empty(vm.Week.Rows);
+        Assert.Empty(vm.Week.Headers);
+        Assert.Equal(FormStatus.Checking, vm.Status);
+        Assert.False(vm.ShowGrid);
+        Assert.False(vm.CompleteFormCommand.CanExecute(null));
+
+        gate.SetResult();
+        await change;
+        Assert.Equal(FormStatus.UpToDate, vm.Status);
+        Assert.Equal(ClubId, FormAddress.FormId(vm.Form!.ResponseUrl));
+    }
+
+    [Fact]
+    public async Task CompleteForm_FormIdMismatch_Refused()
+    {
+        var (vm, _) = Create();
+        await vm.InitializeAsync();
+        vm.Week.Rows[0].Cells[0].IsTicked = true;
+        // The saved address no longer matches the loaded form (should never happen; defence in depth).
+        vm.Data.Settings.FormUrl = FormUrls.ClubForm;
+
+        vm.CompleteFormCommand.Execute(null);
+
+        Assert.Null(vm.Overlay);
+        Assert.NotNull(vm.Notice);
+    }
+
+    [Fact]
+    public async Task CompleteForm_NotOnWeekPage_DoesNothing()
+    {
+        var (vm, _) = Create();
+        await vm.InitializeAsync();
+        vm.Week.Rows[0].Cells[0].IsTicked = true;
+        Assert.True(vm.CompleteFormCommand.CanExecute(null));
+
+        vm.CurrentPage = Page.People;
+        Assert.False(vm.CompleteFormCommand.CanExecute(null));
+        vm.CompleteFormCommand.Execute(null);
+        Assert.Null(vm.Overlay);
+
+        vm.CurrentPage = Page.Settings;
+        vm.CompleteFormCommand.Execute(null);
+        Assert.Null(vm.Overlay);
+
+        vm.CurrentPage = Page.Week;
+        Assert.True(vm.CompleteFormCommand.CanExecute(null));
     }
 }

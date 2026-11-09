@@ -102,12 +102,20 @@ public partial class WeekViewModel : ObservableObject
                 cell.IsTicked = ticked;
     }
 
-    public void Load(RegistrationForm form, AppData data)
+    /// <summary>Empties the grid, e.g. while a different form is being checked.</summary>
+    public void Clear()
     {
         foreach (var cell in Rows.SelectMany(r => r.Cells))
             cell.PropertyChanged -= OnCellChanged;
         Headers.Clear();
         Rows.Clear();
+        HasSessions = false;
+        Recount();
+    }
+
+    public void Load(RegistrationForm form, AppData data)
+    {
+        Clear();
 
         foreach (var session in form.Sessions)
             Headers.Add(new SessionHeaderViewModel(session));

@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using WicklowArchery.App.Services;
 using WicklowArchery.Core.Data;
 using WicklowArchery.Core.Forms;
+using WicklowArchery.Core.Net;
 using WicklowArchery.Core.Registration;
 
 namespace WicklowArchery.App.ViewModels;
@@ -56,8 +57,10 @@ public partial class MainViewModel : ObservableObject
     private string? notice;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowWeek), nameof(ShowPeoplePage), nameof(ShowSettingsPage), nameof(ShowEmptyState), nameof(ShowGrid), nameof(ShowOfflineNotice))]
+    [NotifyPropertyChangedFor(nameof(ShowWeek), nameof(ShowPeoplePage), nameof(ShowSettingsPage), nameof(ShowEmptyState), nameof(ShowGrid), nameof(ShowOfflineNotice), nameof(CompleteFormDisabledReason))]
     private Page currentPage = Page.Week;
+
+    partial void OnCurrentPageChanged(Page value) => CompleteFormCommand.NotifyCanExecuteChanged();
 
     /// <summary>A modal panel shown over the week: the confirm panel, then the results.</summary>
     [ObservableProperty]
@@ -99,6 +102,8 @@ public partial class MainViewModel : ObservableObject
     {
         get
         {
+            // Ctrl+Enter is bound window-wide; only the week page can open the confirm panel.
+            if (CurrentPage != Page.Week) return "Open the week page first.";
             if (Status == FormStatus.Checking) return "Checking the form…";
             if (Status == FormStatus.Offline) return "Can't reach the form.";
             if (Status == FormStatus.Changed) return "The form has changed. Click the status for details.";
@@ -141,8 +146,31 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex) { Notice = $"Couldn't save your details: {ex.Message}"; }
     }
 
-    /// <summary>The form address was changed on the Settings page: the test-form badge follows it.</summary>
-    public void NotifyFormChanged() => OnPropertyChanged(nameof(IsTestForm));
+    /// <summary>
+    /// The form address was changed on the Settings page. The test-form badge follows it, the old form and its
+    /// grid are dropped at once (so nothing can be sent to the previous form), and the new form is checked.
+    /// </summary>
+    public Task FormAddressChangedAsync()
+    {
+        OnPropertyChanged(nameof(IsTestForm));
+        Form = null;
+        Week.Clear();
+        Problems = [];
+        Status = FormStatus.Checking;
+        NotifyFormStateChanged();
+        return RefreshCommand.ExecuteAsync(null);
+    }
+
+    private const string FormMismatchMessage =
+        "The form address changed since this form was checked. Nothing was sent. Wait for the new form to load, then try again.";
+
+    /// <summary>True when <paramref name="form"/> is the form the saved address points at.</summary>
+    private bool IsCurrentAddress(RegistrationForm form)
+    {
+        var saved = FormAddress.TryParse(Data.Settings.FormUrl);
+        var savedId = saved is null ? null : FormAddress.FormId(saved);
+        return savedId is not null && string.Equals(FormAddress.FormId(form.ResponseUrl), savedId, StringComparison.Ordinal);
+    }
 
     partial void OnCurrentPageChanging(Page value)
     {
@@ -168,9 +196,15 @@ public partial class MainViewModel : ObservableObject
 
     private void CompleteForm()
     {
-        if (Form is null || Overlay is not null) return;
-        var items = ConfirmationBuilder.Build(Form, Week.GetSelections(), Data.Clubs, Data.History);
-        Overlay = new ConfirmViewModel(items, Data.History, SubmitAsync, () => Overlay = null);
+        if (Form is not { } form || Overlay is not null || CurrentPage != Page.Week) return;
+        if (!IsCurrentAddress(form))
+        {
+            Notice = FormMismatchMessage;
+            return;
+        }
+        var items = ConfirmationBuilder.Build(form, Week.GetSelections(), Data.Clubs, Data.History);
+        // The panel keeps the form it was built from; Submit sends to exactly that form.
+        Overlay = new ConfirmViewModel(form, items, Data.History, SubmitAsync, () => Overlay = null);
     }
 
     private Task? _run;
@@ -178,28 +212,35 @@ public partial class MainViewModel : ObservableObject
     /// <summary>
     /// Sends the items one at a time, showing per-person progress. Each finished person is written to the
     /// history and saved straight away, so a crash part-way keeps what was sent. A second call while a run is
-    /// in progress joins it rather than sending again.
+    /// in progress joins it rather than sending again. Refuses (and sends nothing) if <paramref name="form"/> is no
+    /// longer the form the saved address points at.
     /// </summary>
-    public Task SubmitAsync(IReadOnlyList<ConfirmItem> items)
+    public Task SubmitAsync(RegistrationForm form, IReadOnlyList<ConfirmItem> items)
     {
         if (_run is { IsCompleted: false } running) return running;
+        if (!IsCurrentAddress(form))
+        {
+            Notice = FormMismatchMessage;
+            Overlay = null;
+            return Task.CompletedTask;
+        }
         IsSubmitting = true;
-        return _run = RunAsync(items);
+        return _run = RunAsync(form, items);
     }
 
     private ResultsViewModel? _results;
 
-    private async Task RunAsync(IReadOnlyList<ConfirmItem> items)
+    private async Task RunAsync(RegistrationForm form, IReadOnlyList<ConfirmItem> items)
     {
         ResultsViewModel? results = null;
         try
         {
-            var form = Form!;
             var ticked = Week.GetSelections().ToDictionary(x => x.Person.Id, x => x.Sessions);
             results = new ResultsViewModel(items, form.SumUpUrl, _urlOpener.Open, () => Overlay = null);
             _results = results;
             Overlay = results;
-            var progress = new InlineProgress<PersonResult>(r => OnUiThread(() => Record(results, r)));
+            var formId = FormAddress.FormId(form.ResponseUrl);
+            var progress = new InlineProgress<PersonResult>(r => OnUiThread(() => Record(results, r, formId)));
             try
             {
                 await _service.SubmitAsync(form, items, progress, CancellationToken.None);
@@ -211,7 +252,9 @@ public partial class MainViewModel : ObservableObject
             OnUiThread(() =>
             {
                 results.Finish();
-                Week.Load(form, Data);
+                // The grid follows the form that is loaded now; if there is none, there is no grid to refresh.
+                if (Form is not { } current) return;
+                Week.Load(current, Data);
                 // Failed or skipped people keep their ticks, so a retry is one click.
                 foreach (var row in results.Rows.Where(r => r.State is PersonResultState.Failed or PersonResultState.Skipped))
                 {
@@ -239,6 +282,7 @@ public partial class MainViewModel : ObservableObject
                 _results = null;
                 results?.Finish();
                 IsSubmitting = false;
+                if (Notice == CloseBlockedMessage) Notice = null;
             });
         }
     }
@@ -250,13 +294,14 @@ public partial class MainViewModel : ObservableObject
     public bool TryBlockClose()
     {
         if (!IsSubmitting) return false;
-        const string message = "Sending in progress. Close the app when it finishes.";
-        if (_results is not null) _results.CloseBlockedMessage = message;
-        Notice = message;
+        if (_results is not null) _results.CloseBlockedMessage = CloseBlockedMessage;
+        Notice = CloseBlockedMessage;
         return true;
     }
 
-    private void Record(ResultsViewModel results, PersonResult result)
+    private const string CloseBlockedMessage = "Sending in progress. Close the app when it finishes.";
+
+    private void Record(ResultsViewModel results, PersonResult result, string? formId)
     {
         results.Apply(result);
         if (result.State is not (PersonResultState.Submitted or PersonResultState.Failed) || result.Item.Submission is null)
@@ -266,6 +311,7 @@ public partial class MainViewModel : ObservableObject
             Data.History.Add(new HistoryEntry
             {
                 PersonId = result.Item.Person.Id,
+                FormId = formId,
                 SessionText = session,
                 At = result.At,
                 Succeeded = result.State == PersonResultState.Submitted,
@@ -289,19 +335,42 @@ public partial class MainViewModel : ObservableObject
         public void Report(T value) => report(value);
     }
 
+    private int _loadGeneration;
+
+    /// <summary>
+    /// Checks the form at the saved address. Only the newest check may change anything: a slow earlier check
+    /// (for example of the previous form address) is discarded when it finally answers.
+    /// </summary>
     private async Task LoadAsync()
     {
+        var generation = ++_loadGeneration;
+        var url = Data.Settings.FormUrl;
         Status = FormStatus.Checking;
+
+        FormLoadResult? result = null;
+        Exception? failure = null;
+        try { result = await _service.LoadFormAsync(url, CancellationToken.None); }
+        catch (Exception ex) { failure = ex; }
+
+        if (generation != _loadGeneration || !string.Equals(url, Data.Settings.FormUrl, StringComparison.Ordinal))
+            return;
+
         try
         {
-            var result = await _service.LoadFormAsync(Data.Settings.FormUrl, CancellationToken.None);
-
-            if (result.Check is { IsUsable: true, Form: { } form })
+            if (failure is not null)
             {
-                var sameSessions = Form is not null && Form.Sessions.SequenceEqual(form.Sessions);
+                Form = null;
+                Problems = [$"Something went wrong while checking the form: {failure.Message}"];
+                Status = FormStatus.Changed;
+            }
+            else if (result!.Check is { IsUsable: true, Form: { } form })
+            {
+                var sameForm = Form is not null
+                    && FormAddress.FormId(Form.ResponseUrl) == FormAddress.FormId(form.ResponseUrl)
+                    && Form.Sessions.SequenceEqual(form.Sessions);
                 Form = form;
                 Problems = [];
-                if (!sameSessions)
+                if (!sameForm)
                     Week.Load(form, Data);
                 Status = FormStatus.UpToDate;
             }
@@ -333,14 +402,20 @@ public partial class MainViewModel : ObservableObject
         {
             if (Status == FormStatus.Checking)
                 Status = FormStatus.Changed;
-            OnPropertyChanged(nameof(Form));
-            OnPropertyChanged(nameof(ShowGrid));
-            OnPropertyChanged(nameof(ShowOfflineNotice));
-            OnPropertyChanged(nameof(StatusText));
-            OnPropertyChanged(nameof(CompleteFormDisabledReason));
-            CompleteFormCommand.NotifyCanExecuteChanged();
+            NotifyFormStateChanged();
         }
     }
+
+    private void NotifyFormStateChanged()
+    {
+        OnPropertyChanged(nameof(Form));
+        OnPropertyChanged(nameof(ShowGrid));
+        OnPropertyChanged(nameof(ShowOfflineNotice));
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(CompleteFormDisabledReason));
+        CompleteFormCommand.NotifyCanExecuteChanged();
+    }
+
     partial void OnStatusChanged(FormStatus value) => CompleteFormCommand.NotifyCanExecuteChanged();
 
     private void OnWeekChanged(object? sender, PropertyChangedEventArgs e)

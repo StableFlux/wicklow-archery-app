@@ -234,8 +234,7 @@ public partial class SettingsViewModel : ObservableObject
         catch (Exception ex) { _owner.Notice = $"Couldn't save your details: {ex.Message}"; }
         OnPropertyChanged(nameof(FormStatusText));
         OnPropertyChanged(nameof(IsFormStatusCaution));
-        _owner.NotifyFormChanged();
-        return _owner.RefreshCommand.ExecuteAsync(null);
+        return _owner.FormAddressChangedAsync();
     }
 
     /// <summary>Called when the page is left: apply a pending edit, or quietly drop one that is not a form link.</summary>

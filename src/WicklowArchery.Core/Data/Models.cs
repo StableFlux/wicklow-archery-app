@@ -21,6 +21,10 @@ public sealed class Person
 public sealed class HistoryEntry
 {
     public Guid PersonId { get; set; }
+
+    /// <summary>The form it was sent to. Null in entries saved before this was recorded: those were the club form.</summary>
+    public string? FormId { get; set; }
+
     public string SessionText { get; set; } = "";
     public DateTimeOffset At { get; set; }
     public bool Succeeded { get; set; }
