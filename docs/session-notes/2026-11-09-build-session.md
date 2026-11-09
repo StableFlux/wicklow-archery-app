@@ -47,12 +47,52 @@ Rooted in this folder. Followed the design session the same day.
 - What Google serves for a closed form.
 - Windows logoff during a send.
 
+## Later the same session
+
+- **Responses tab, checked via Chrome:** 4 responses. `TEST live 2026-11-09
+  19:34` and `18:30`, `TEST spike A`, `TEST spike B`.
+- **Closed form, measured on the test form.** I turned responses off,
+  tested, then turned them back on; it was confirmed open again (200).
+  - Loading a closed form: `viewform` returns 302 to `/closedform`.
+  - Submitting to a closed form: `formResponse` returns 302 to
+    `/closedform`, and nothing is stored.
+  - The app currently shows that second case as "Unexpected reply (HTTP 302)".
+- **150% display scaling, measured** (James set it; window DPI 144). The
+  main, People, Settings and confirm screens, and the minimum window size,
+  all render correctly.
+  - Screenshots are in the session scratchpad.
+  - James may want to set scaling back.
+- **Accessibility gaps, measured with UI Automation:**
+  - the People and Settings buttons have no accessible name;
+  - grid cells don't name the person.
+- **Chrome closing.** It closed each time Claude closed its own tab. This
+  time the tab was left open. Next session, confirm whether Chrome stayed
+  up, and never close the last tab in the group.
+- **New design approved by James:**
+  `docs/superpowers/specs/2026-11-09-robustness-and-distribution-design.md`
+  (robustness, auto-updates via Velopack, club-logo icon, E2E automation,
+  support). It has been builder-checked, and its "Settled after the
+  builder check" section lists Claude's calls.
+- **James's decisions:**
+  - The GitHub version auto-updates through a one-click per-user installer.
+  - The icon reproduces the club logo, and may go into the public repo and
+    installers now.
+  - The repo stays public.
+  - Everything is to be tested before distribution.
+  - The committee doesn't know about the app yet. James will show it to
+    them once it's tested.
+
 ## Open items / next steps
 
-1. James runs the README's end-to-end check with the rebuilt exe (TEST
-   people only), then Claude checks the test form's Responses via Chrome.
-2. James decides: merge `feature/v1-build` into `main`, push to GitHub,
-   and publish a GitHub Release with the exe.
+1. **Next session:** write the build plan for the robustness design with
+   superpowers:writing-plans, then build it subagent-driven on
+   `feature/v1-build`.
+2. The end-to-end check becomes an automated UI Automation test (in the
+   new design) instead of a manual one.
+3. Merge to `main`, push, and the first GitHub Release (1.0.0) come only
+   when everything in the new design passes. Each step needs James's OK.
+4. Research code-signing options and costs for an individual developer in
+   Ireland, and report back.
 3. James's design and function feedback after testing.
 4. Later: Microsoft Store (signing), Mac version, payment automation rules.
 5. Chrome reported "the browser is shutting down" when Claude closed its

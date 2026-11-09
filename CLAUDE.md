@@ -24,9 +24,18 @@ login.
   hardening and a final review fix wave. 190 tests pass and the build has
   0 warnings. The work is on branch `feature/v1-build` (not merged, not
   pushed). Repo: https://github.com/StableFlux/wicklow-archery-app.
-- **Next:** James runs the README end-to-end check with
-  `publish/WicklowArchers.exe` (TEST people only), then decides on the
-  merge, push and GitHub Release.
+- 2026-11-09 (end of day): James approved a second design,
+  `docs/superpowers/specs/2026-11-09-robustness-and-distribution-design.md`
+  (robustness, auto-updates, club-logo icon, E2E automation, support).
+- **Next:** write its build plan (superpowers:writing-plans), then build it
+  on `feature/v1-build`. Merge, push and the first release (1.0.0) come
+  only after everything passes, and each needs James's OK.
+
+## Browser note
+
+- When using Claude in Chrome, don't close the last tab in Claude's tab
+  group. Chrome shut down each time that happened on 2026-11-09. This is
+  inferred, not confirmed.
 
 ## Code layout
 
