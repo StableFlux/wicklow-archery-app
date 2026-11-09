@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using WicklowArchery.Core.Data;
 using WicklowArchery.Core.Forms;
+using WicklowArchery.Core.Net;
 using WicklowArchery.Core.Registration;
 using Xunit;
 
@@ -86,5 +87,36 @@ public class ConfirmationBuilderTests
         Assert.Equal("Missing club number.", Run(f, [new(noNum, s)]).Single().BlockedReason);
         Assert.Equal("Payment method \"\" is no longer on the form. Edit this person to pick one.",
             Run(f, [new(P(payment: ""), s)]).Single().BlockedReason);
+    }
+    private static readonly string TestFormId = FormAddress.FormId(new Uri(FormUrls.TestForm))!;
+    private static readonly string ClubFormId = FormAddress.FormId(new Uri(FormUrls.ClubForm))!;
+
+    private static RegistrationForm TestForm() =>
+        FormMapper.Map(FormParser.Parse(Fixtures.Read("test-form-2026-11-09.html"))).Form!;
+
+    [Fact]
+    public void History_FromTestForm_NotRegisteredOnClubForm()
+    {
+        var club = Form();
+        var p = P();
+        // Same person and session text, but sent to the test form.
+        var sentToTest = new HistoryEntry { PersonId = p.Id, FormId = TestFormId, SessionText = club.Sessions[0], Succeeded = true };
+        Assert.Empty(Run(club, [new(p, [club.Sessions[0]])], [sentToTest]).Single().RepeatSessions);
+
+        var sentToClub = new HistoryEntry { PersonId = p.Id, FormId = ClubFormId, SessionText = club.Sessions[0], Succeeded = true };
+        Assert.Equal([club.Sessions[0]], Run(club, [new(p, [club.Sessions[0]])], [sentToClub]).Single().RepeatSessions);
+    }
+
+    [Fact]
+    public void History_NullFormId_TreatedAsClubForm()
+    {
+        var club = Form();
+        var test = TestForm();
+        var p = P(payment: test.PaymentOptions[0]);
+        var onClub = new HistoryEntry { PersonId = p.Id, SessionText = club.Sessions[0], Succeeded = true };
+        var onTest = new HistoryEntry { PersonId = p.Id, SessionText = test.Sessions[0], Succeeded = true };
+
+        Assert.Equal([club.Sessions[0]], Run(club, [new(p, [club.Sessions[0]])], [onClub]).Single().RepeatSessions);
+        Assert.Empty(Run(test, [new(p, [test.Sessions[0]])], [onTest]).Single().RepeatSessions);
     }
 }

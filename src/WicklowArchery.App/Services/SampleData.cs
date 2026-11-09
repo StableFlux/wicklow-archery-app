@@ -55,6 +55,7 @@ internal static class SampleData
             data.History.Add(new HistoryEntry
             {
                 PersonId = p2.Id,
+                FormId = FormAddress.FormId(form.ResponseUrl),
                 SessionText = wednesday,
                 At = DateTimeOffset.Now.AddHours(-20),
                 Succeeded = true,

@@ -5,6 +5,7 @@ using System.Linq;
 using WicklowArchery.App.ViewModels;
 using WicklowArchery.Core.Data;
 using WicklowArchery.Core.Forms;
+using WicklowArchery.Core.Net;
 using Xunit;
 
 namespace WicklowArchery.Tests.App;
@@ -94,7 +95,7 @@ public class WeekViewModelTests
         var form = Form();
         var a = P("A", DayOfWeek.Wednesday);
         var wed = form.Sessions.Single(s => SessionText.DayOf(s) == DayOfWeek.Wednesday);
-        var entry = new HistoryEntry { PersonId = a.Id, SessionText = wed, Succeeded = true, At = DateTimeOffset.UtcNow };
+        var entry = new HistoryEntry { PersonId = a.Id, FormId = TestFormId, SessionText = wed, Succeeded = true, At = DateTimeOffset.UtcNow };
         var data = Data(a);
         data.History.Add(entry);
         var vm = Loaded(form, data);
@@ -145,5 +146,36 @@ public class WeekViewModelTests
 
         vm.Load(Form(), Data(P("A", DayOfWeek.Monday)));
         Assert.True(vm.HasSessions);
+    }
+    private static readonly string TestFormId = FormAddress.FormId(new Uri(FormUrls.TestForm))!;
+
+    private static RegistrationForm ClubForm() =>
+        FormMapper.Map(FormParser.Parse(Fixtures.Read("club-form-2026-11-09.html"))).Form!;
+
+    [Fact]
+    public void History_FromTestForm_NotRegisteredOnClubForm()
+    {
+        var club = ClubForm();
+        var a = P("A");
+        var data = Data(a);
+        data.History.Add(new HistoryEntry { PersonId = a.Id, FormId = TestFormId, SessionText = club.Sessions[0], Succeeded = true, At = DateTimeOffset.UtcNow });
+
+        var vm = Loaded(club, data);
+
+        Assert.False(vm.Rows.Single().Cells.Single(c => c.SessionText == club.Sessions[0]).IsRegistered);
+    }
+
+    [Fact]
+    public void History_NullFormId_TreatedAsClubForm()
+    {
+        var club = ClubForm();
+        var test = Form();
+        var a = P("A");
+        var data = Data(a);
+        data.History.Add(new HistoryEntry { PersonId = a.Id, SessionText = club.Sessions[0], Succeeded = true, At = DateTimeOffset.UtcNow });
+        data.History.Add(new HistoryEntry { PersonId = a.Id, SessionText = test.Sessions[0], Succeeded = true, At = DateTimeOffset.UtcNow });
+
+        Assert.True(Loaded(club, data).Rows.Single().Cells.Single(c => c.SessionText == club.Sessions[0]).IsRegistered);
+        Assert.False(Loaded(test, data).Rows.Single().Cells.Single(c => c.SessionText == test.Sessions[0]).IsRegistered);
     }
 }

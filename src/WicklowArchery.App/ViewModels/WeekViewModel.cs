@@ -3,6 +3,7 @@ using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using WicklowArchery.Core.Data;
 using WicklowArchery.Core.Forms;
+using WicklowArchery.Core.Net;
 using WicklowArchery.Core.Registration;
 
 namespace WicklowArchery.App.ViewModels;
@@ -120,7 +121,7 @@ public partial class WeekViewModel : ObservableObject
         foreach (var session in form.Sessions)
             Headers.Add(new SessionHeaderViewModel(session));
 
-        var cells = WeekPlanner.Build(form.Sessions, data.People, data.History);
+        var cells = WeekPlanner.Build(form.Sessions, data.People, data.History, FormAddress.FormId(form.ResponseUrl));
         foreach (var person in data.People)
         {
             var rowCells = cells

@@ -44,7 +44,8 @@ public sealed class AppDataStoreTests : IDisposable
         };
         data.People.Add(person);
         var at = new DateTimeOffset(2026, 11, 9, 18, 30, 0, TimeSpan.FromHours(1));
-        data.History.Add(new HistoryEntry { PersonId = person.Id, SessionText = "Wed", At = at, Succeeded = false, Error = "x" });
+        data.History.Add(new HistoryEntry { PersonId = person.Id, FormId = "form-123", SessionText = "Wed", At = at, Succeeded = false, Error = "x" });
+        data.History.Add(new HistoryEntry { PersonId = person.Id, SessionText = "Sun", At = at, Succeeded = true });
         data.Settings.Window = new WindowPlacement { Left = 1, Top = 2, Width = 3, Height = 4, Maximized = true };
         store.Save(data);
 
@@ -58,8 +59,11 @@ public sealed class AppDataStoreTests : IDisposable
         Assert.Equal("Cash", p.PaymentMethod);
         Assert.Equal("Left handed adults bow", p.LoanBow);
         Assert.Equal([DayOfWeek.Wednesday, DayOfWeek.Sunday], p.UsualDays);
-        var h = Assert.Single(loaded.Data.History);
+        Assert.Equal(2, loaded.Data.History.Count);
+        var h = loaded.Data.History[0];
         Assert.Equal(person.Id, h.PersonId);
+        Assert.Equal("form-123", h.FormId);
+        Assert.Null(loaded.Data.History[1].FormId);
         Assert.Equal("Wed", h.SessionText);
         Assert.Equal(at, h.At);
         Assert.False(h.Succeeded);

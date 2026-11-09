@@ -7,17 +7,16 @@ public sealed record WeekCell(Guid PersonId, string SessionText, bool PreTicked,
 
 public static class WeekPlanner
 {
-    public static IReadOnlyList<WeekCell> Build(IReadOnlyList<string> sessions, IReadOnlyList<Person> people, IReadOnlyList<HistoryEntry> history)
+    /// <param name="formId">The form being shown; only history sent to this form counts as registered.</param>
+    public static IReadOnlyList<WeekCell> Build(IReadOnlyList<string> sessions, IReadOnlyList<Person> people,
+        IReadOnlyList<HistoryEntry> history, string? formId)
     {
         var cells = new List<WeekCell>();
         foreach (var person in people)
         {
             foreach (var session in sessions)
             {
-                var done = history
-                    .Where(h => h.Succeeded && h.PersonId == person.Id && string.Equals(h.SessionText, session, StringComparison.Ordinal))
-                    .OrderByDescending(h => h.At)
-                    .FirstOrDefault();
+                var done = FormHistory.LastSuccess(history, person.Id, session, formId);
                 var day = Forms.SessionText.DayOf(session);
                 var usual = day is not null && person.UsualDays.Contains(day.Value);
                 cells.Add(new WeekCell(person.Id, session, usual && done is null, done));

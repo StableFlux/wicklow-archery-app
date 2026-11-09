@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WicklowArchery.Core.Data;
 using WicklowArchery.Core.Forms;
+using WicklowArchery.Core.Net;
 using WicklowArchery.Core.Registration;
 
 namespace WicklowArchery.App.ViewModels;
@@ -12,12 +13,12 @@ public sealed record ConfirmSessionLine(string Headline, string? RepeatText);
 
 public sealed class ConfirmPersonViewModel
 {
-    public ConfirmPersonViewModel(ConfirmItem item, IReadOnlyList<HistoryEntry> history)
+    public ConfirmPersonViewModel(ConfirmItem item, IReadOnlyList<HistoryEntry> history, string? formId)
     {
         Name = item.Person.FullName;
         BlockedReason = item.BlockedReason;
         var sessions = item.Submission?.Sessions ?? [];
-        Sessions = sessions.Select(s => new ConfirmSessionLine(SessionText.Split(s).Headline, RepeatTextFor(item, s, history))).ToList();
+        Sessions = sessions.Select(s => new ConfirmSessionLine(SessionText.Split(s).Headline, RepeatTextFor(item, s, history, formId))).ToList();
     }
 
     public string Name { get; }
@@ -25,13 +26,10 @@ public sealed class ConfirmPersonViewModel
     public string? BlockedReason { get; }
     public bool IsBlocked => BlockedReason is not null;
 
-    private static string? RepeatTextFor(ConfirmItem item, string session, IReadOnlyList<HistoryEntry> history)
+    private static string? RepeatTextFor(ConfirmItem item, string session, IReadOnlyList<HistoryEntry> history, string? formId)
     {
         if (!item.RepeatSessions.Contains(session)) return null;
-        var last = history
-            .Where(h => h.Succeeded && h.PersonId == item.Person.Id && string.Equals(h.SessionText, session, StringComparison.Ordinal))
-            .OrderByDescending(h => h.At)
-            .FirstOrDefault();
+        var last = FormHistory.LastSuccess(history, item.Person.Id, session, formId);
         var date = last is null ? "earlier" : last.At.ToLocalTime().ToString("ddd d MMM", CultureInfo.CurrentCulture);
         return $"Already registered on {date}; will be sent again";
     }
@@ -45,7 +43,8 @@ public partial class ConfirmViewModel : ObservableObject
     {
         Form = form;
         Items = items;
-        People = items.Select(i => new ConfirmPersonViewModel(i, history)).ToList();
+        var formId = FormAddress.FormId(form.ResponseUrl);
+        People = items.Select(i => new ConfirmPersonViewModel(i, history, formId)).ToList();
         SendableCount = items.Count(i => !i.IsBlocked);
         SubmitCommand = new AsyncRelayCommand(() => submit(Form, Items), () => SendableCount > 0);
         CancelCommand = new RelayCommand(cancel, () => !SubmitCommand.IsRunning);

@@ -17,6 +17,7 @@ namespace WicklowArchery.Tests.App;
 public class ConfirmViewModelTests
 {
     private const string NonMember = "NON CLUB MEMBER PAYMENT";
+    private static readonly string TestFormId = FormAddress.FormId(new Uri(FormUrls.TestForm))!;
 
     private sealed class RecordingUrlOpener : IUrlOpener
     {
@@ -86,7 +87,9 @@ public class ConfirmViewModelTests
     {
         var env = await CreateAsync();
         var at = new DateTimeOffset(2026, 11, 8, 10, 0, 0, TimeSpan.Zero);
-        env.Vm.Data.History.Add(new HistoryEntry { PersonId = env.Member.Id, SessionText = env.Monday, At = at, Succeeded = true });
+        env.Vm.Data.History.Add(new HistoryEntry { PersonId = env.Member.Id, FormId = TestFormId, SessionText = env.Monday, At = at, Succeeded = true });
+        // The same session sent to the club form is not a repeat on the test form.
+        env.Vm.Data.History.Add(new HistoryEntry { PersonId = env.Member.Id, FormId = null, SessionText = env.Wednesday, At = at, Succeeded = true });
         env.Vm.Week.Load(env.Vm.Form!, env.Vm.Data);
         Tick(env, env.Member, env.Monday, env.Wednesday);
         Tick(env, env.Blocked, env.Monday);
@@ -148,6 +151,7 @@ public class ConfirmViewModelTests
         Assert.Equal(2, reloaded.History.Count(h => h.PersonId == env.Member.Id && h.Succeeded));
         Assert.Contains(reloaded.History, h => h.SessionText == env.Monday);
         Assert.Contains(reloaded.History, h => h.SessionText == env.Wednesday);
+        Assert.All(reloaded.History, h => Assert.Equal(TestFormId, h.FormId));
     }
 
     [Fact]

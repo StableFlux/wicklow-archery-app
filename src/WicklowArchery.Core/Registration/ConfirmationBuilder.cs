@@ -1,5 +1,6 @@
 using WicklowArchery.Core.Data;
 using WicklowArchery.Core.Forms;
+using WicklowArchery.Core.Net;
 
 namespace WicklowArchery.Core.Registration;
 
@@ -15,13 +16,13 @@ public static class ConfirmationBuilder
     public static IReadOnlyList<ConfirmItem> Build(RegistrationForm form, IReadOnlyList<Selection> selections,
         IReadOnlyList<Club> clubs, IReadOnlyList<HistoryEntry> history)
     {
+        var formId = FormAddress.FormId(form.ResponseUrl);
         var items = new List<ConfirmItem>();
         foreach (var sel in selections)
         {
             if (sel.Sessions.Count == 0) continue;
             var person = sel.Person;
-            var repeats = sel.Sessions.Where(s => history.Any(h =>
-                h.Succeeded && h.PersonId == person.Id && string.Equals(h.SessionText, s, StringComparison.Ordinal))).ToList();
+            var repeats = sel.Sessions.Where(s => FormHistory.LastSuccess(history, person.Id, s, formId) is not null).ToList();
             var club = clubs.FirstOrDefault(c => c.Id == person.ClubId);
 
             string? blocked = null;
