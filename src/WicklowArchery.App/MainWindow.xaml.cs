@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Input;
 using WicklowArchery.App.ViewModels;
 using WicklowArchery.Core.Data;
@@ -50,7 +50,7 @@ public partial class MainWindow : Window
                 Left = bounds.Left, Top = bounds.Top, Width = bounds.Width, Height = bounds.Height, Maximized = maximized,
             };
         }
-        vm.SaveData();
+        try { vm.SaveData(); } catch (Exception) { /* nothing useful to do while closing */ }
     }
 
     private void StatusPill_Click(object sender, RoutedEventArgs e)

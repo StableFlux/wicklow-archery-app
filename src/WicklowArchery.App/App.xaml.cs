@@ -40,6 +40,6 @@ public partial class App : Application
         window.Show();
 
         // Window first, so "Checking this week's form…" is visible while the form loads.
-        await vm.InitializeAsync();
+        try { await vm.InitializeAsync(); } catch (Exception) { /* the view model reports its own failures; never crash at launch */ }
     }
 }

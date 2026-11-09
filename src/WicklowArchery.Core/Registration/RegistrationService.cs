@@ -12,6 +12,8 @@ public sealed record PersonResult(ConfirmItem Item, PersonResultState State, str
 
 public sealed class RegistrationService(IFormClient client, TimeProvider clock)
 {
+    public const string NetworkErrorMessage = "Couldn't reach the form. Check your internet connection.";
+
     public async Task<FormLoadResult> LoadFormAsync(string formUrl, CancellationToken ct)
     {
         const string parseError = "The form page couldn't be read. Google may have changed its format.";
@@ -30,11 +32,11 @@ public sealed class RegistrationService(IFormClient client, TimeProvider clock)
         }
         catch (HttpRequestException)
         {
-            return new FormLoadResult(null, "Couldn't reach the form. Check your internet connection.");
+            return new FormLoadResult(null, NetworkErrorMessage);
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
-            return new FormLoadResult(null, "Couldn't reach the form. Check your internet connection.");
+            return new FormLoadResult(null, NetworkErrorMessage);
         }
         catch (FormParseException)
         {

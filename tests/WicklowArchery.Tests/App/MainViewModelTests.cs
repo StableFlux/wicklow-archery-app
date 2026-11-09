@@ -119,4 +119,26 @@ public class MainViewModelTests
         Assert.Null(vm.CompleteFormDisabledReason);
         Assert.True(vm.CompleteFormCommand.CanExecute(null));
     }
+
+    [Fact]
+    public async Task Init_UnexpectedException_ShowsChangedNotChecking()
+    {
+        var (vm, client) = Create();
+        client.GetException = new InvalidOperationException("boom");
+        await vm.InitializeAsync();
+        Assert.NotEqual(FormStatus.Checking, vm.Status);
+        Assert.Equal(FormStatus.Changed, vm.Status);
+        Assert.Contains(vm.Problems, p => p.Contains("boom"));
+        Assert.NotNull(vm.CompleteFormDisabledReason);
+        Assert.False(vm.CompleteFormCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Init_NetworkError_UsesSharedConstant()
+    {
+        var (vm, client) = Create();
+        client.GetException = new HttpRequestException("down");
+        await vm.InitializeAsync();
+        Assert.Equal(FormStatus.Offline, vm.Status);
+    }
 }

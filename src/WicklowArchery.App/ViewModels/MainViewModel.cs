@@ -15,8 +15,6 @@ public enum Page { Week, People, Settings }
 /// <summary>The main window: loads the live form, tracks its status, and gates Complete Form.</summary>
 public partial class MainViewModel : ObservableObject
 {
-    private const string OfflinePrefix = "Couldn't reach the form";
-
     private readonly RegistrationService _service;
     private readonly AppDataStore _store;
     private readonly IUrlOpener _urlOpener;
@@ -115,35 +113,26 @@ public partial class MainViewModel : ObservableObject
     private async Task LoadAsync()
     {
         Status = FormStatus.Checking;
-        FormLoadResult result;
         try
         {
-            result = await _service.LoadFormAsync(Data.Settings.FormUrl, CancellationToken.None);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            result = new FormLoadResult(null, OfflinePrefix + ".");
-        }
+            var result = await _service.LoadFormAsync(Data.Settings.FormUrl, CancellationToken.None);
 
-        if (result.Check is { IsUsable: true, Form: { } form })
-        {
-            var sameSessions = Form is not null && Form.Sessions.SequenceEqual(form.Sessions);
-            Form = form;
-            Problems = [];
-            if (!sameSessions)
-                Week.Load(form, Data);
-            Status = FormStatus.UpToDate;
-        }
-        else if (result.Check is { } check)
-        {
-            Form = null;
-            Problems = check.Problems.Count > 0 ? check.Problems : ["The form's questions are not as expected."];
-            Status = FormStatus.Changed;
-        }
-        else
-        {
-            var error = result.Error ?? OfflinePrefix + ".";
-            if (error.StartsWith(OfflinePrefix, StringComparison.Ordinal))
+            if (result.Check is { IsUsable: true, Form: { } form })
+            {
+                var sameSessions = Form is not null && Form.Sessions.SequenceEqual(form.Sessions);
+                Form = form;
+                Problems = [];
+                if (!sameSessions)
+                    Week.Load(form, Data);
+                Status = FormStatus.UpToDate;
+            }
+            else if (result.Check is { } check)
+            {
+                Form = null;
+                Problems = check.Problems.Count > 0 ? check.Problems : ["The form's questions are not as expected."];
+                Status = FormStatus.Changed;
+            }
+            else if (result.Error is null || string.Equals(result.Error, RegistrationService.NetworkErrorMessage, StringComparison.Ordinal))
             {
                 Problems = [];
                 Status = FormStatus.Offline;
@@ -151,19 +140,28 @@ public partial class MainViewModel : ObservableObject
             else
             {
                 Form = null;
-                Problems = [error];
+                Problems = [result.Error];
                 Status = FormStatus.Changed;
             }
         }
-
-        OnPropertyChanged(nameof(Form));
-        OnPropertyChanged(nameof(ShowGrid));
-        OnPropertyChanged(nameof(ShowOfflineNotice));
-        OnPropertyChanged(nameof(StatusText));
-        OnPropertyChanged(nameof(CompleteFormDisabledReason));
-        CompleteFormCommand.NotifyCanExecuteChanged();
+        catch (Exception ex)
+        {
+            Form = null;
+            Problems = [$"Something went wrong while checking the form: {ex.Message}"];
+            Status = FormStatus.Changed;
+        }
+        finally
+        {
+            if (Status == FormStatus.Checking)
+                Status = FormStatus.Changed;
+            OnPropertyChanged(nameof(Form));
+            OnPropertyChanged(nameof(ShowGrid));
+            OnPropertyChanged(nameof(ShowOfflineNotice));
+            OnPropertyChanged(nameof(StatusText));
+            OnPropertyChanged(nameof(CompleteFormDisabledReason));
+            CompleteFormCommand.NotifyCanExecuteChanged();
+        }
     }
-
     partial void OnStatusChanged(FormStatus value) => CompleteFormCommand.NotifyCanExecuteChanged();
 
     private void OnWeekChanged(object? sender, PropertyChangedEventArgs e)
