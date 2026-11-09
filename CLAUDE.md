@@ -20,8 +20,23 @@ login.
 - 2026-11-09 (later): James approved the design and added a look-and-feel
   section (Fluent theme, main-screen layout). Build plan written:
   `docs/superpowers/plans/2026-11-09-venue-registration-app.md` (15 tasks).
-- **Next:** James reviews the plan, picks an execution method, and OKs
-  `git init` (Task 1).
+- 2026-11-09 (build): all 15 tasks built and reviewed, plus security
+  hardening and a final review fix wave. 190 tests pass and the build has
+  0 warnings. The work is on branch `feature/v1-build` (not merged, not
+  pushed). Repo: https://github.com/StableFlux/wicklow-archery-app.
+- **Next:** James runs the README end-to-end check with
+  `publish/WicklowArchers.exe` (TEST people only), then decides on the
+  merge, push and GitHub Release.
+
+## Code layout
+
+- `src/WicklowArchery.Core/`: form parsing and checking, payloads, the
+  encrypted store, and the submit service. No UI.
+- `src/WicklowArchery.App/`: the WPF app. Debug builds: `--sample` mode,
+  the `WicklowArcheryApp-Dev` data folder, and a guard that blocks
+  submitting to the club form.
+- `tests/WicklowArchery.Tests/`: run with `dotnet test --filter "Category!=Live"`.
+  `Category=Live` submits a real response to the test form.
 
 ## Rules for working here
 
