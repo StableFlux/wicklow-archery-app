@@ -1,0 +1,15 @@
+* text=auto
+
+*.cs      text diff=csharp
+*.xaml    text
+*.csproj  text
+*.sln     text eol=crlf
+*.md      text
+*.py      text
+
+# Saved form pages are fixtures: keep them byte-for-byte as downloaded
+docs/reference/form-snapshots/*.html -text
+
+*.png binary
+*.ico binary
+*.exe binary

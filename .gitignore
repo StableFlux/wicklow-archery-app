@@ -1,0 +1,16 @@
+# Build output
+bin/
+obj/
+publish/
+TestResults/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Agent workspaces (scratch, not project history)
+.superpowers/
+.claude/
+.worktrees/
