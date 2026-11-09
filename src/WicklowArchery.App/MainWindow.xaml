@@ -240,7 +240,7 @@
                     <TextBlock Text="Add the people you register each week. Their usual days are ticked for you."
                                TextWrapping="Wrap" TextAlignment="Center" Style="{StaticResource SecondaryText}" Margin="0,8,0,24" />
                     <Button Content="Add your first person" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Center"
-                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:Page.People}" />
+                            Command="{Binding AddFirstPersonCommand}" />
                 </StackPanel>
             </Border>
 
@@ -250,20 +250,11 @@
                        Style="{StaticResource SecondaryText}" Margin="24"
                        Visibility="{Binding ShowOfflineNotice, Converter={StaticResource BoolToVisibility}}" />
 
-            <!-- People and Settings pages arrive in later build steps. -->
-            <Border Style="{StaticResource PageCard}"
-                    Visibility="{Binding ShowPeoplePage, Converter={StaticResource BoolToVisibility}}">
-                <StackPanel HorizontalAlignment="Center">
-                    <TextBlock Text="People page arrives in a later build step." Style="{StaticResource SecondaryText}" />
-                    <Button Style="{StaticResource SubtleButton}" HorizontalAlignment="Center" Margin="0,16,0,0"
-                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:Page.Week}">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="&#xE72B;" Style="{StaticResource IconText}" />
-                            <TextBlock Text="Back" Margin="8,0,0,0" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Border>
+            <!-- People page -->
+            <views:PeopleView DataContext="{Binding People}" Margin="24,0"
+                              Visibility="{Binding DataContext.ShowPeoplePage, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
+
+            <!-- The Settings page arrives in a later build step. -->
             <Border Style="{StaticResource PageCard}"
                     Visibility="{Binding ShowSettingsPage, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel HorizontalAlignment="Center">
@@ -281,7 +272,8 @@
 
         <!-- Footer -->
         <Border Grid.Row="3" Margin="0,16,0,0" Padding="24,16" Background="{DynamicResource LayerFillColorDefaultBrush}"
-                BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                Visibility="{Binding ShowWeek, Converter={StaticResource BoolToVisibility}}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />

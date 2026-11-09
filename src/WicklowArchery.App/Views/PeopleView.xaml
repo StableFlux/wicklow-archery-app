@@ -1,0 +1,254 @@
+<UserControl x:Class="WicklowArchery.App.Views.PeopleView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False" IsVisibleChanged="OnIsVisibleChanged">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!-- Field label above its input. -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <!-- Quiet hint under a field; collapses when there is nothing to say. -->
+        <Style x:Key="FieldHint" TargetType="TextBlock" BasedOn="{StaticResource SecondaryText}">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+            <Style.Triggers>
+                <Trigger Property="Text" Value="">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Caution note with a warning icon, shown only when its bound flag is true. -->
+        <Style x:Key="CautionNote" TargetType="StackPanel">
+            <Setter Property="Orientation" Value="Horizontal" />
+            <Setter Property="Margin" Value="0,6,0,0" />
+        </Style>
+
+        <Style x:Key="FieldBox" TargetType="Control">
+            <Setter Property="MinHeight" Value="36" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Page header: back to the week, title, and the Saved indicator. -->
+        <Grid Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Style="{StaticResource SubtleButton}" Command="{Binding BackCommand}" Margin="-10,0,12,0"
+                    AutomationProperties.Name="Back to this week">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE72B;" Style="{StaticResource IconText}" />
+                    <TextBlock Text="This week" Margin="8,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            <TextBlock Grid.Column="1" Text="People" FontFamily="{StaticResource DisplayFont}" FontSize="20" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                        Visibility="{Binding ShowSaved, Converter={StaticResource BoolToVisibility}}"
+                        AutomationProperties.Name="Saved">
+                <TextBlock Text="&#xE73E;" Style="{StaticResource IconText}" FontSize="12" Margin="0,0,6,0"
+                           Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
+                <TextBlock Text="Saved" Style="{StaticResource SecondaryText}" FontSize="12" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Nobody yet. -->
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,48">
+            <StackPanel.Style>
+                <Style TargetType="StackPanel">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding People.Count}" Value="0">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </StackPanel.Style>
+            <TextBlock Text="Add the people you register each week." Style="{StaticResource SecondaryText}"
+                       HorizontalAlignment="Center" />
+            <Button Content="Add person" Style="{StaticResource PrimaryButton}" Margin="0,16,0,0" HorizontalAlignment="Center"
+                    Command="{Binding AddCommand}" Click="OnAddClick" />
+        </StackPanel>
+
+        <!-- List on the left, editor on the right. -->
+        <Grid Grid.Row="1" Margin="0,0,0,16">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding People.Count}" Value="0">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Style="{StaticResource Card}" Padding="8">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Button Content="Add person" Style="{StaticResource PrimaryButton}" MinWidth="0" Margin="4,4,4,12"
+                            HorizontalAlignment="Stretch" Command="{Binding AddCommand}" Click="OnAddClick" />
+                    <ListBox x:Name="PeopleList" Grid.Row="1" ItemsSource="{Binding People}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                             BorderThickness="0" Background="Transparent" ItemContainerStyle="{StaticResource PersonListItem}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" PreviewMouseLeftButtonUp="OnListClick">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding ListName}" TextTrimming="CharacterEllipsis">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource BodyText}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsNameEmpty}" Value="True">
+                                                        <Setter Property="FontStyle" Value="Italic" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding ListDetail}" Style="{StaticResource CaptionText}" Margin="0,2,0,0"
+                                               TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2" Style="{StaticResource Card}" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+                <Grid DataContext="{Binding Selected}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <ScrollViewer Style="{StaticResource CardScrollViewer}" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="24,24,24,16" MaxWidth="680" HorizontalAlignment="Left">
+                        <TextBlock Text="Full name" Style="{StaticResource FieldLabel}" />
+                        <TextBox x:Name="FullNameBox" Text="{Binding FullName, UpdateSourceTrigger=PropertyChanged}" MinHeight="36"
+                                 VerticalContentAlignment="Center" AutomationProperties.Name="Full name" />
+                        <TextBlock Text="{Binding NameHint}" Style="{StaticResource FieldHint}" />
+
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Club" Style="{StaticResource FieldLabel}" />
+                                <ComboBox ItemsSource="{Binding Clubs}" SelectedItem="{Binding Club}" DisplayMemberPath="Name"
+                                          MinHeight="36" HorizontalAlignment="Stretch" AutomationProperties.Name="Club" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Club number" Style="{StaticResource FieldLabel}" />
+                                <TextBox Text="{Binding ClubNumber, UpdateSourceTrigger=PropertyChanged}" MinHeight="36"
+                                         VerticalContentAlignment="Center" AutomationProperties.Name="Club number" />
+                                <TextBlock Text="{Binding NumberHint}" Style="{StaticResource FieldHint}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid Margin="0,16,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Payment" Style="{StaticResource FieldLabel}" />
+                                <ComboBox ItemsSource="{Binding PaymentOptions}" SelectedItem="{Binding PaymentMethod}" MinHeight="36"
+                                          HorizontalAlignment="Stretch" AutomationProperties.Name="Payment" />
+                                <TextBlock Text="{Binding PaymentHint}" Style="{StaticResource FieldHint}" />
+                                <StackPanel Style="{StaticResource CautionNote}"
+                                            Visibility="{Binding PaymentNotOnForm, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="&#xE7BA;" Style="{StaticResource IconText}" FontSize="12" Margin="0,0,6,0"
+                                               Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                    <TextBlock Text="Not on this week's form" Style="{StaticResource CaptionText}" />
+                                </StackPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Loan bow" Style="{StaticResource FieldLabel}" />
+                                <ComboBox ItemsSource="{Binding LoanLabels}" SelectedIndex="{Binding LoanIndex}" MinHeight="36"
+                                          HorizontalAlignment="Stretch" AutomationProperties.Name="Loan bow" />
+                                <StackPanel Style="{StaticResource CautionNote}"
+                                            Visibility="{Binding LoanNotOnForm, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="&#xE7BA;" Style="{StaticResource IconText}" FontSize="12" Margin="0,0,6,0"
+                                               Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                    <TextBlock Text="Not on this week's form" Style="{StaticResource CaptionText}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="Usual days" Style="{StaticResource FieldLabel}" Margin="0,16,0,6" />
+                        <ItemsControl ItemsSource="{Binding Days}" Focusable="False" IsTabStop="False">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <ToggleButton Content="{Binding Label}" IsChecked="{Binding IsSelected}"
+                                                  Style="{StaticResource DayPill}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Ticked for you each week on the main screen." Style="{StaticResource FieldHint}" Margin="0,0,0,0" />
+
+                    </StackPanel>
+                </ScrollViewer>
+                <Border Grid.Row="1" Padding="24,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
+                    <StackPanel>
+                        <!-- Remove: a button, then an inline question. -->
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel.Style>
+                                <Style TargetType="StackPanel">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConfirmingRemove}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </StackPanel.Style>
+                            <Button Style="{StaticResource CriticalButton}"
+                                    Command="{Binding DataContext.AskRemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE74D;" Style="{StaticResource IconText}" FontSize="14" />
+                                    <TextBlock Text="Remove person" Margin="8,0,0,0" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding IsConfirmingRemove, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="{Binding RemovePrompt}" Style="{StaticResource BodyStrongText}" TextWrapping="Wrap" />
+                            <TextBlock Text="Their past registrations stay in the history." Style="{StaticResource FieldHint}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <Button Content="Remove" Style="{StaticResource CriticalButton}" MinWidth="96"
+                                        Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                <Button Content="Cancel" Style="{StaticResource SubtleButton}" Margin="8,0,0,0" MinWidth="80"
+                                        Command="{Binding DataContext.CancelRemoveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

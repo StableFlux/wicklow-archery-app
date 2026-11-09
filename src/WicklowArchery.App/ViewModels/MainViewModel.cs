@@ -29,6 +29,7 @@ public partial class MainViewModel : ObservableObject
         Data = loaded.Data;
         notice = loaded.Notice;
 
+        People = new PeopleViewModel(this);
         Week.PropertyChanged += OnWeekChanged;
         RefreshCommand = new AsyncRelayCommand(LoadAsync, () => !IsSubmitting);
         CompleteFormCommand = new RelayCommand(CompleteForm, () => CompleteFormDisabledReason is null);
@@ -36,6 +37,7 @@ public partial class MainViewModel : ObservableObject
 
     public AppData Data { get; }
     public WeekViewModel Week { get; } = new();
+    public PeopleViewModel People { get; }
     public RegistrationForm? Form { get; private set; }
 
     public IAsyncRelayCommand RefreshCommand { get; }
@@ -109,10 +111,30 @@ public partial class MainViewModel : ObservableObject
 
     public void SaveData() => _store.Save(Data);
 
+    /// <summary>The People page added, removed or edited someone: bring the main screen up to date.</summary>
+    public void PeopleChanged()
+    {
+        if (Form is not null)
+            Week.Load(Form, Data);
+        OnPropertyChanged(nameof(ShowEmptyState));
+        OnPropertyChanged(nameof(ShowGrid));
+        OnPropertyChanged(nameof(ShowOfflineNotice));
+        OnPropertyChanged(nameof(CompleteFormDisabledReason));
+        CompleteFormCommand.NotifyCanExecuteChanged();
+    }
+
     public void OpenUrl(Uri url) => _urlOpener.Open(url);
 
     [RelayCommand]
     private void Navigate(Page page) => CurrentPage = page;
+
+    /// <summary>First run: go to the People page with a new person ready to type into.</summary>
+    [RelayCommand]
+    private void AddFirstPerson()
+    {
+        CurrentPage = Page.People;
+        People.AddCommand.Execute(null);
+    }
 
     [RelayCommand]
     private void DismissNotice() => Notice = null;
