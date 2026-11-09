@@ -47,7 +47,8 @@ public partial class ResultRowViewModel : ObservableObject
 /// <summary>Per-person progress and outcome of a send, with the optional "Pay with SumUp" link.</summary>
 public partial class ResultsViewModel : ObservableObject
 {
-    private const string NonMemberPayment = "NON CLUB MEMBER PAYMENT";
+    /// <summary>Non-members pay by SumUp. Matched loosely, so a small rewording of the option keeps the button.</summary>
+    private const string NonMemberPayment = "NON CLUB MEMBER";
     private readonly Uri? _sumUpUrl;
     private readonly Action<Uri> _openUrl;
 
@@ -76,7 +77,8 @@ public partial class ResultsViewModel : ObservableObject
     public string Title => IsFinished ? "Done" : "Sending…";
 
     public bool ShowSumUp => _sumUpUrl is not null && Rows.Any(r =>
-        r.State == PersonResultState.Submitted && r.Item.Submission?.PaymentMethod == NonMemberPayment);
+        r.State == PersonResultState.Submitted
+        && r.Item.Submission?.PaymentMethod?.Contains(NonMemberPayment, StringComparison.OrdinalIgnoreCase) == true);
 
     partial void OnIsFinishedChanged(bool value) => DoneCommand.NotifyCanExecuteChanged();
 

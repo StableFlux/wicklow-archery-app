@@ -2,7 +2,7 @@ using System.Net.Http;
 
 namespace WicklowArchery.Core.Net;
 
-/// <summary>Real HTTP client. The caller owns the HttpClient and its timeout.</summary>
+/// <summary>Real HTTP client: only Google Forms addresses, no redirects followed, 30-second timeout.</summary>
 public sealed class HttpFormClient : IFormClient
 {
     private readonly HttpClient http;
@@ -31,7 +31,9 @@ public sealed class HttpFormClient : IFormClient
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         AddHeaders(request);
         using var response = await http.SendAsync(request, ct).ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
+        // Anything but 2xx fails closed; the status says why (e.g. 404 gone, 302 to a sign-in page).
+        if (!response.IsSuccessStatusCode)
+            throw new FormHttpStatusException((int)response.StatusCode, response.Headers.Location);
         return await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
     }
 

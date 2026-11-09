@@ -118,6 +118,9 @@ public partial class MainViewModel : ObservableObject
 
     public void SaveData() => _store.Save(Data);
 
+    /// <summary>False when the saved details couldn't be opened at startup: nothing is saved this session.</summary>
+    public bool CanSave => _store.CanSave;
+
     /// <summary>A name was edited: update its label in the grid, nothing else.</summary>
     public void PersonRenamed(Person person) => Week.RefreshName(person);
 

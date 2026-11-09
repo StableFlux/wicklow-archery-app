@@ -278,4 +278,31 @@ public class PeopleViewModelTests
         env.Vm.CurrentPage = Page.Week;
         Assert.False(env.People.Selected.IsConfirmingRemove);
     }
+    [Fact]
+    public async Task StoreCannotSave_NoSavedIndicator()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "WicklowArcheryTests-" + Guid.NewGuid());
+        var seed = new AppDataStore(dir, new PassThroughProtector());
+        var data = AppData.CreateDefault();
+        data.Settings.FormUrl = FormUrls.TestForm;
+        data.People.Add(new Person { FullName = "Person 1", ClubId = data.Clubs[0].Id, ClubNumber = "WA-001" });
+        seed.Save(data);
+
+        // The data file is locked while the app starts, so the store can't save this session.
+        var store = new AppDataStore(dir, new PassThroughProtector());
+        MainViewModel vm;
+        using (File.Open(Path.Combine(dir, "data.bin"), FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var client = new FakeFormClient { GetBody = Fixtures.Read("test-form-2026-11-09.html") };
+            var service = new RegistrationService(client, new FixedTimeProvider(new DateTimeOffset(2026, 11, 9, 12, 0, 0, TimeSpan.Zero)));
+            vm = new MainViewModel(service, store, new FakeUrlOpener());
+        }
+        await vm.InitializeAsync();
+        Assert.NotNull(vm.Notice);
+
+        vm.People.AddCommand.Execute(null);
+        Assert.False(vm.People.ShowSaved);
+        vm.People.Selected!.FullName = "Typed";
+        Assert.False(vm.People.ShowSaved);
+    }
 }

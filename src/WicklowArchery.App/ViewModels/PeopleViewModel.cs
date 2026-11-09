@@ -6,9 +6,10 @@ using WicklowArchery.Core.Data;
 
 namespace WicklowArchery.App.ViewModels;
 
-/// <summary>One day-of-week pill in the editor.</summary>
+/// <summary>What an edit changed, so the week grid can do as little as needed.</summary>
 public enum EditKind { Other, Name, Days }
 
+/// <summary>One day-of-week pill in the editor.</summary>
 public partial class DayChipViewModel(DayOfWeek day, string label, bool isSelected) : ObservableObject
 {
     public DayOfWeek Day { get; } = day;
@@ -355,6 +356,8 @@ public partial class PeopleViewModel : ObservableObject
 
     private void MarkSaved()
     {
+        // Nothing was written; the startup notice already says changes won't be saved.
+        if (!_owner.CanSave) return;
         _savedTimer?.Cancel();
         var timer = _savedTimer = new CancellationTokenSource();
         ShowSaved = true;

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using WicklowArchery.App.Services;
 using WicklowArchery.App.ViewModels;
 using WicklowArchery.Core.Data;
+using WicklowArchery.Core.Forms;
 using WicklowArchery.Core.Net;
 using WicklowArchery.Core.Registration;
 using WicklowArchery.Tests.Fakes;
@@ -379,5 +380,18 @@ public class ConfirmViewModelTests
         gate.SetResult();
         await run;
         Assert.Null(env.Vm.Notice);
+    }
+    [Theory]
+    [InlineData("NON CLUB MEMBER PAYMENT", true)]
+    [InlineData("Non Club Member payment - \u20ac10", true)]
+    [InlineData("NON CLUB MEMBER", true)]
+    [InlineData("WICKLOW ARCHERY CLUB MEMBER - FREE NO PAYMENT", false)]
+    public void Results_ShowSumUp_MatchesNonMemberOptionLoosely(string payment, bool expected)
+    {
+        var person = new Person { FullName = "A", ClubNumber = "1", PaymentMethod = payment };
+        var item = new ConfirmItem(person, new PersonSubmission(person.Id, "A", "Club", "1", ["Mon"], payment, null), [], null);
+        var results = new ResultsViewModel([item], new Uri("https://example.sumup.link/"), _ => { }, () => { });
+        results.Apply(new PersonResult(item, PersonResultState.Submitted, null, DateTimeOffset.UtcNow));
+        Assert.Equal(expected, results.ShowSumUp);
     }
 }

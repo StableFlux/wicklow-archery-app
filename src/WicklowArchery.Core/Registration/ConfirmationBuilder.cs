@@ -29,14 +29,14 @@ public static class ConfirmationBuilder
             if (string.IsNullOrWhiteSpace(person.FullName)) blocked = "Missing full name.";
             else if (club is null) blocked = "No club set.";
             else if (string.IsNullOrWhiteSpace(person.ClubNumber)) blocked = "Missing club number.";
-            else if (!form.PaymentOptions.Contains(person.PaymentMethod ?? "", StringComparer.Ordinal) || string.IsNullOrEmpty(person.PaymentMethod))
+            else if (string.IsNullOrEmpty(person.PaymentMethod) || !form.PaymentOptions.Contains(person.PaymentMethod, StringComparer.Ordinal))
                 blocked = $"Payment method \"{person.PaymentMethod}\" is no longer on the form. Edit this person to pick one.";
             else if (!string.IsNullOrEmpty(person.LoanBow) && !form.LoanOptions.Contains(person.LoanBow, StringComparer.Ordinal))
                 blocked = $"Loan bow \"{person.LoanBow}\" is no longer on the form. Edit this person to change it.";
 
             var submission = blocked is null
                 ? new PersonSubmission(person.Id, person.FullName, club!.Name, person.ClubNumber, sel.Sessions,
-                    person.PaymentMethod, string.IsNullOrEmpty(person.LoanBow) ? null : person.LoanBow)
+                    person.PaymentMethod ?? "", string.IsNullOrEmpty(person.LoanBow) ? null : person.LoanBow)
                 : null;
             items.Add(new ConfirmItem(person, submission, repeats, blocked));
         }

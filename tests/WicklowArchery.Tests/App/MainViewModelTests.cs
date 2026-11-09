@@ -229,4 +229,25 @@ public class MainViewModelTests
         vm.CurrentPage = Page.Week;
         Assert.True(vm.CompleteFormCommand.CanExecute(null));
     }
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.NotFound, "That form couldn't be found. Check the form address in Settings.")]
+    [InlineData(System.Net.HttpStatusCode.Forbidden, "That form needs a Google sign-in, which this app doesn't support.")]
+    public async Task Init_HttpStatusError_ChangedWithMessage(System.Net.HttpStatusCode code, string message)
+    {
+        var (vm, client) = Create();
+        client.GetException = new HttpRequestException("x", null, code);
+        await vm.InitializeAsync();
+        Assert.Equal(FormStatus.Changed, vm.Status);
+        Assert.Equal([message], vm.Problems);
+        Assert.False(vm.CompleteFormCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Init_ClosedForm_ChangedWithMessage()
+    {
+        var (vm, _) = Create(body: "<html>The form Test is no longer accepting responses.</html>");
+        await vm.InitializeAsync();
+        Assert.Equal(FormStatus.Changed, vm.Status);
+        Assert.Equal(["The form isn't accepting responses right now."], vm.Problems);
+    }
 }

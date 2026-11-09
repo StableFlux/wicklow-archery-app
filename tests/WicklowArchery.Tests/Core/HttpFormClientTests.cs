@@ -67,12 +67,16 @@ public class HttpFormClientTests
 
     [Theory]
     [InlineData(302)]
+    [InlineData(404)]
     [InlineData(500)]
-    public async Task Get_Non2xx_ThrowsHttpRequestException(int code)
+    public async Task Get_Non2xx_ThrowsWithStatus(int code)
     {
         var client = new HttpFormClient(new HttpClient(new StatusHandler((HttpStatusCode)code)));
-        await Assert.ThrowsAsync<HttpRequestException>(() =>
+        var ex = await Assert.ThrowsAsync<FormHttpStatusException>(() =>
             client.GetAsync(new Uri("https://docs.google.com/forms/d/e/x/viewform"), CancellationToken.None));
+        Assert.Equal(code, ex.Status);
+        Assert.Equal((HttpStatusCode)code, ex.StatusCode);
+        Assert.IsAssignableFrom<HttpRequestException>(ex);
     }
 
     [Fact]

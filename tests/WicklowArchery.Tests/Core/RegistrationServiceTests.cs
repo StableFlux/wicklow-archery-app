@@ -190,12 +190,95 @@ public class RegistrationServiceTests
     }
 
     [Fact]
-    public async Task Load_Get302_ReturnsNetworkError()
+    public async Task Load_Get302_ReturnsSignInError()
     {
         var real = new HttpFormClient(new HttpClient(new Status302Handler()));
         var s = new RegistrationService(real, new FixedTimeProvider(Now));
         var r = await s.LoadFormAsync(FormUrls.TestForm, CancellationToken.None);
         Assert.Null(r.Check);
-        Assert.Equal("Couldn't reach the form. Check your internet connection.", r.Error);
+        Assert.Equal(SignInMessage, r.Error);
+    }
+    private const string NotFoundMessage = "That form couldn't be found. Check the form address in Settings.";
+    private const string SignInMessage = "That form needs a Google sign-in, which this app doesn't support.";
+    private const string ClosedMessage = "The form isn't accepting responses right now.";
+    private const string NetworkMessage = "Couldn't reach the form. Check your internet connection.";
+
+    private sealed class StatusHandler(System.Net.HttpStatusCode code, string body = "", string? location = null) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            var response = new HttpResponseMessage(code) { Content = new StringContent(body) };
+            if (location is not null) response.Headers.Location = new Uri(location);
+            return Task.FromResult(response);
+        }
+    }
+
+    private static Task<FormLoadResult> LoadThroughHttp(System.Net.HttpStatusCode code, string body = "", string? location = null) =>
+        new RegistrationService(new HttpFormClient(new HttpClient(new StatusHandler(code, body, location))), new FixedTimeProvider(Now))
+            .LoadFormAsync(FormUrls.TestForm, CancellationToken.None);
+
+    [Theory]
+    [InlineData(404, NotFoundMessage)]
+    [InlineData(301, SignInMessage)]
+    [InlineData(302, SignInMessage)]
+    [InlineData(303, SignInMessage)]
+    [InlineData(307, SignInMessage)]
+    [InlineData(401, SignInMessage)]
+    [InlineData(403, SignInMessage)]
+    [InlineData(500, "Google replied with an error (HTTP 500). Try again later.")]
+    [InlineData(503, "Google replied with an error (HTTP 503). Try again later.")]
+    [InlineData(429, "Google replied with an error (HTTP 429). Try again later.")]
+    public async Task Load_HttpStatus_MapsToMessage(int code, string expected)
+    {
+        var r = await LoadThroughHttp((System.Net.HttpStatusCode)code);
+        Assert.Null(r.Check);
+        Assert.Equal(expected, r.Error);
+    }
+
+    [Fact]
+    public async Task Load_RedirectToSignIn_SignInMessage()
+    {
+        var r = await LoadThroughHttp(System.Net.HttpStatusCode.Found, location: "https://accounts.google.com/ServiceLogin?continue=x");
+        Assert.Equal(SignInMessage, r.Error);
+    }
+
+    [Fact]
+    public async Task Load_RedirectToClosedForm_ClosedMessage()
+    {
+        var r = await LoadThroughHttp(System.Net.HttpStatusCode.Found,
+            location: "https://docs.google.com/forms/d/e/1FAIpQLSdP3j6gNAZbVACWKqW-evjYMjcMXvA1R2XUjJpJzJmC6M-Inw/closedform");
+        Assert.Equal(ClosedMessage, r.Error);
+    }
+
+    [Fact]
+    public async Task Load_ClosedFormPage_ClosedMessage()
+    {
+        var (c, s) = Make();
+        c.GetBody = "<html><body><div>Wicklow Archers Venue Registration</div>" +
+                    "<div>The form Wicklow Archers Venue Registration is no longer accepting responses.</div>" +
+                    "<div>Try contacting the owner of the form if you think that this is a mistake.</div></body></html>";
+        var r = await s.LoadFormAsync(FormUrls.TestForm, CancellationToken.None);
+        Assert.Null(r.Check);
+        Assert.Equal(ClosedMessage, r.Error);
+    }
+
+    [Fact]
+    public async Task Load_StatusFromFakeClient_404_NotFound()
+    {
+        var (c, s) = Make();
+        c.GetException = new HttpRequestException("Not found", null, System.Net.HttpStatusCode.NotFound);
+        var r = await s.LoadFormAsync(FormUrls.TestForm, CancellationToken.None);
+        Assert.Equal(NotFoundMessage, r.Error);
+    }
+
+    [Fact]
+    public async Task Submit_Timeout_SaysItMayHaveBeenRecorded()
+    {
+        var (c, s) = Make();
+        c.OnPost = (_, _) => throw new TaskCanceledException("timeout");
+        var form = Form();
+        var results = await s.SubmitAsync(form, Items(form, P(form, "A")), null, CancellationToken.None);
+        Assert.Equal(PersonResultState.Failed, results[0].State);
+        Assert.Equal("Timed out. It may have been recorded, so check the form's responses before sending again.", results[0].Error);
     }
 }

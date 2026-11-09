@@ -13,6 +13,10 @@ public sealed record PersonResult(ConfirmItem Item, PersonResultState State, str
 public sealed class RegistrationService(IFormClient client, TimeProvider clock)
 {
     public const string NetworkErrorMessage = "Couldn't reach the form. Check your internet connection.";
+    public const string NotFoundMessage = "That form couldn't be found. Check the form address in Settings.";
+    public const string SignInMessage = "That form needs a Google sign-in, which this app doesn't support.";
+    public const string ClosedMessage = "The form isn't accepting responses right now.";
+    public const string TimeoutMessage = "Timed out. It may have been recorded, so check the form's responses before sending again.";
 
     public async Task<FormLoadResult> LoadFormAsync(string formUrl, CancellationToken ct)
     {
@@ -20,9 +24,10 @@ public sealed class RegistrationService(IFormClient client, TimeProvider clock)
         var formUri = FormAddress.TryParse(formUrl);
         if (formUri is null)
             return new FormLoadResult(null, "That form address isn't a Google Form link. Use the full docs.google.com/forms link.");
+        string? html = null;
         try
         {
-            var html = await client.GetAsync(formUri, ct).ConfigureAwait(false);
+            html = await client.GetAsync(formUri, ct).ConfigureAwait(false);
             var check = FormMapper.Map(FormParser.Parse(html));
             if (check.Form is { } form
                 && (!FormAddress.IsAllowed(form.ResponseUrl)
@@ -30,9 +35,10 @@ public sealed class RegistrationService(IFormClient client, TimeProvider clock)
                 return new FormLoadResult(null, parseError);
             return new FormLoadResult(check, null);
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
-            return new FormLoadResult(null, NetworkErrorMessage);
+            // No status means no answer at all: a network problem. An answer with a status is explained.
+            return new FormLoadResult(null, ex.StatusCode is null ? NetworkErrorMessage : StatusMessage(ex));
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -40,9 +46,28 @@ public sealed class RegistrationService(IFormClient client, TimeProvider clock)
         }
         catch (FormParseException)
         {
-            return new FormLoadResult(null, parseError);
+            return new FormLoadResult(null, IsClosedPage(html) ? ClosedMessage : parseError);
         }
     }
+
+    private static string StatusMessage(HttpRequestException ex)
+    {
+        var status = (int)ex.StatusCode!.Value;
+        var location = (ex as FormHttpStatusException)?.Location?.ToString() ?? "";
+        return status switch
+        {
+            404 => NotFoundMessage,
+            >= 300 and < 400 when location.Contains("/closedform", StringComparison.OrdinalIgnoreCase) => ClosedMessage,
+            (>= 300 and < 400) or 401 or 403 => SignInMessage,
+            _ => $"Google replied with an error (HTTP {status}). Try again later.",
+        };
+    }
+
+    /// <summary>Google's "no longer accepting responses" page has no form data in it.</summary>
+    private static bool IsClosedPage(string? html) =>
+        html is not null
+        && !html.Contains("FB_PUBLIC_LOAD_DATA_", StringComparison.Ordinal)
+        && html.Contains("no longer accepting responses", StringComparison.OrdinalIgnoreCase);
 
     public async Task<IReadOnlyList<PersonResult>> SubmitAsync(RegistrationForm form, IReadOnlyList<ConfirmItem> items,
         IProgress<PersonResult>? progress, CancellationToken ct)
@@ -89,7 +114,7 @@ public sealed class RegistrationService(IFormClient client, TimeProvider clock)
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
-            return Failed("Couldn't reach Google: the request timed out.");
+            return Failed(TimeoutMessage);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
