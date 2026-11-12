@@ -1,0 +1,3 @@
+# Holds emails given to Claude for context. Never commit them.
+*
+!.gitignore

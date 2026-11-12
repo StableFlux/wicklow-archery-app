@@ -27,7 +27,11 @@ login.
 - 2026-11-09 (end of day): James approved a second design,
   `docs/superpowers/specs/2026-11-09-robustness-and-distribution-design.md`
   (robustness, auto-updates, club-logo icon, E2E automation, support).
-- **Next:** write its build plan (superpowers:writing-plans), then build it
+- 2026-11-12: GitHub secret-scanning alert (9 "Google API Key") assessed
+  as a false positive: they are Google's own page keys from the form
+  snapshots. The keys were blanked in the fixtures and the alerts closed.
+  Start-of-session rule added.
+- **Next:** write the robustness design's build plan (superpowers:writing-plans), then build it
   on `feature/v1-build`. Merge, push and the first release (1.0.0) come
   only after everything passes, and each needs James's OK.
 
@@ -49,10 +53,20 @@ login.
 
 ## Rules for working here
 
+- **Start of every session, before any other work:** get up to speed. Read
+  the Status section above, the latest session note(s) in
+  `docs/session-notes/`, the design(s) and plan relevant to the next step,
+  and `git log` / `git status`. Then tell James in a few lines where the
+  project stands and what's next.
+- **Keep the records current during the session**, not only at the end:
+  decisions James makes, what was measured, what's still open. The session
+  note and the Status section must give the next session full context.
 - **Never submit to the club's real form while testing.** Use the test form
   (its URLs are in the design doc).
 - At the end of each session, add a note to `docs/session-notes/` and update
   the Status section above.
+- `docs/email_temp/` holds emails James gives for context. Its contents are
+  git-ignored. Delete each email once it's been digested.
 
 ## How James works
 
