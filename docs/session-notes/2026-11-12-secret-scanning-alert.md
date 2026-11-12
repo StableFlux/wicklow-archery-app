@@ -46,8 +46,15 @@
 
 - The old keys remain in git history (d1ec73c on `main`). History was not
   rewritten; nothing secret is in it.
-- `feature/v1-build` is still not pushed. Pushing needs James's OK.
 - The Live test was not run. The change touched only test fixtures.
+
+## End of session
+
+- James asked for a project log. Added `docs/project-log.md`: one line per
+  session, backfilled from 2026-11-09. CLAUDE.md now says to read it at
+  the start of a session and append to it at the end.
+- With James's OK, `feature/v1-build` was pushed to GitHub for the first
+  time. It is not merged to `main`.
 
 ## Next
 

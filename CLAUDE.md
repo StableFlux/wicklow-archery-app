@@ -9,6 +9,8 @@ login.
 - Design, the source of truth for what to build:
   `docs/superpowers/specs/2026-11-09-venue-registration-app-design.md`
 - Build plan: `docs/superpowers/plans/` (written once the design is approved)
+- Project log, one line per session: `docs/project-log.md`. Read it first
+  for the history.
 - Session notes and history: `docs/session-notes/`. Read the latest one first.
 - Form snapshots (club form and test form) and the parser:
   `docs/reference/form-snapshots/`
@@ -30,10 +32,12 @@ login.
 - 2026-11-12: GitHub secret-scanning alert (9 "Google API Key") assessed
   as a false positive: they are Google's own page keys from the form
   snapshots. The keys were blanked in the fixtures and the alerts closed.
-  Start-of-session rule added.
-- **Next:** write the robustness design's build plan (superpowers:writing-plans), then build it
-  on `feature/v1-build`. Merge, push and the first release (1.0.0) come
-  only after everything passes, and each needs James's OK.
+  Start-of-session rule and project log added. `feature/v1-build` pushed
+  to GitHub (James's OK). It is not merged to `main`.
+- **Next:** write the robustness design's build plan
+  (superpowers:writing-plans), then build it on `feature/v1-build`. Merging
+  to `main` and the first release (1.0.0) come only after everything
+  passes, and each needs James's OK.
 
 ## Browser note
 
@@ -54,7 +58,7 @@ login.
 ## Rules for working here
 
 - **Start of every session, before any other work:** get up to speed. Read
-  the Status section above, the latest session note(s) in
+  the Status section above, `docs/project-log.md`, the latest session note(s) in
   `docs/session-notes/`, the design(s) and plan relevant to the next step,
   and `git log` / `git status`. Then tell James in a few lines where the
   project stands and what's next.
@@ -63,8 +67,8 @@ login.
   note and the Status section must give the next session full context.
 - **Never submit to the club's real form while testing.** Use the test form
   (its URLs are in the design doc).
-- At the end of each session, add a note to `docs/session-notes/` and update
-  the Status section above.
+- At the end of each session: add a note to `docs/session-notes/`, append
+  one line to `docs/project-log.md`, and update the Status section above.
 - `docs/email_temp/` holds emails James gives for context. Its contents are
   git-ignored. Delete each email once it's been digested.
 
